@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Download, MoreHorizontal, PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
+import { Check, ChevronRight, Copy, Download, MoreHorizontal, PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,13 +12,13 @@ import { AssetGrid } from "@/components/asset-grid";
 import { AspectPicker, LengthPicker, StylePicker } from "@/components/pickers";
 import { StatusPill } from "@/components/status";
 import { TimelineStrip } from "@/components/timeline-strip";
-import { Button, Menu, MenuItem, plate, SectionTitle, Spinner, useMediaQuery } from "@/components/ui";
+import { Badge, Button, IconButton, Menu, MenuItem, SectionHeader, Segmented, Spinner, useMediaQuery } from "@/components/ui";
 import { api, Aspect, FootageSource, formatDuration, media, Project, Run, timeAgo } from "@/lib/api";
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { styles, patchProjectSummary, refreshProjects, plateOf } = useApp();
+  const { styles, patchProjectSummary, refreshProjects } = useApp();
   const [project, setProject] = useState<Project | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -95,8 +95,8 @@ export default function ProjectPage() {
   if (notFound)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted">
-        <span className="text-[18px] font-medium">This work isn&apos;t in the collection.</span>
-        <Link href="/" className="text-fg underline underline-offset-4">Back to the studio</Link>
+        <span className="text-[16px] font-medium text-fg">This video doesn&apos;t exist or was removed.</span>
+        <Link href="/" className="text-fg underline underline-offset-4">Back to the Studio</Link>
       </div>
     );
   if (!project)
@@ -137,122 +137,106 @@ export default function ProjectPage() {
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <div className="flex h-12 shrink-0 items-center gap-3 border-b border-line px-5">
-          <div className="flex min-w-0 items-baseline gap-2 text-[13px]">
-            <Link href="/" className="text-muted hover:text-fg">Studio</Link>
-            <span className="text-faint">/</span>
-            <span className="label !text-fg">{plate(plateOf(project.id))}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            {runs[0] && <span className="mr-2"><StatusPill status={runs[0].status} /></span>}
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-4 sm:px-5">
+          <nav className="flex min-w-0 items-center gap-1.5 text-[13.5px]" aria-label="Breadcrumb">
+            <Link href="/" className="shrink-0 text-muted transition-colors hover:text-fg">Studio</Link>
+            <ChevronRight className="size-3.5 shrink-0 text-faint" strokeWidth={1.75} />
+            <span className="truncate font-medium">{project.name || "Untitled"}</span>
+          </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {runs[0] && !(isDesktop && panelOpen) && <StatusPill status={runs[0].status} className="mr-1 hidden sm:inline-flex" />}
             {selectedRun && (
-              <a href={media.video(selectedRun.id, true)}>
-                <Button size="sm" variant="ghost" icon={<Download className="size-3.5" strokeWidth={1.5} />}>Download</Button>
+              <a href={media.video(selectedRun.id, true)} className="hidden sm:block">
+                <Button size="sm" icon={<Download className="size-3.5" strokeWidth={1.75} />}>Download</Button>
               </a>
             )}
             <Menu
               align="right"
-              width="w-48"
+              width="w-52"
               trigger={({ toggle }) => (
-                <Button size="sm" variant="ghost" onClick={toggle} aria-label="More">
-                  <MoreHorizontal className="size-4" strokeWidth={1.5} />
-                </Button>
+                <IconButton onClick={toggle} aria-label="More">
+                  <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                </IconButton>
               )}
             >
               {() => (
-                <MenuItem icon={<Trash2 className="size-3.5" strokeWidth={1.5} />} danger onClick={remove}>
-                  Remove this work
-                </MenuItem>
+                <>
+                  {selectedRun && (
+                    <a href={media.video(selectedRun.id, true)} className="sm:hidden">
+                      <MenuItem icon={<Download className="size-3.5" strokeWidth={1.75} />} onClick={() => {}}>Download video</MenuItem>
+                    </a>
+                  )}
+                  <MenuItem icon={<Trash2 className="size-3.5" strokeWidth={1.75} />} danger onClick={remove}>
+                    Remove this work
+                  </MenuItem>
+                </>
               )}
             </Menu>
             {isDesktop && (
-              <Button size="sm" variant="ghost" onClick={() => setPanelOpen((o) => !o)} aria-label="Toggle studio log">
-                {panelOpen ? <PanelRightClose className="size-4" strokeWidth={1.5} /> : <PanelRightOpen className="size-4" strokeWidth={1.5} />}
-              </Button>
+              <IconButton onClick={() => setPanelOpen((o) => !o)} aria-label={panelOpen ? "Hide activity" : "Show activity"} title={panelOpen ? "Hide activity" : "Show activity"}>
+                {panelOpen ? <PanelRightClose className="size-4" strokeWidth={1.75} /> : <PanelRightOpen className="size-4" strokeWidth={1.75} />}
+              </IconButton>
             )}
           </div>
         </div>
 
-        {/* The entry */}
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
           <SectionBar sections={sections} scroller={scroller} />
-          <div className="mx-auto max-w-[780px] px-6 pt-10 pb-32 sm:px-12">
-            <div className="label">{plate(plateOf(project.id))} · Begun {begun}</div>
-            <textarea
-              value={project.name}
-              onChange={(e) => change({ name: e.target.value.replace(/\n/g, "") })}
-              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-              rows={1}
-              placeholder="Untitled"
-              aria-label="Title"
-              className="mt-3 block w-full resize-none bg-transparent text-[34px] leading-[1.08] font-semibold tracking-[-0.035em] outline-none placeholder:text-faint sm:text-[44px]"
-            />
-
-            {/* Spec band */}
-            <div className="mt-7 grid grid-cols-2 gap-y-5 border-y border-line py-4 sm:grid-cols-3">
-              <LengthPicker label="Running time" value={project.target_seconds} onChange={(v) => change({ target_seconds: v }, true)} />
-              <AspectPicker label="Format" value={project.aspect} onChange={(v: Aspect) => change({ aspect: v }, true)} />
-              <div className="flex items-end gap-3">
+          <div className="mx-auto max-w-[800px] space-y-5 px-4 pt-8 pb-28 sm:px-8">
+            {/* Title and settings */}
+            <div className="px-1 pb-3">
+              <textarea
+                value={project.name}
+                onChange={(e) => change({ name: e.target.value.replace(/\n/g, "") })}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                rows={1}
+                placeholder="Untitled"
+                aria-label="Title"
+                className="block w-full resize-none bg-transparent text-[30px] leading-[1.1] font-semibold tracking-[-0.035em] outline-none placeholder:text-faint sm:text-[38px]"
+              />
+              <div className="label mt-1.5">Started {begun}</div>
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <LengthPicker label="Running time" value={project.target_seconds} onChange={(v) => change({ target_seconds: v }, true)} />
+                <AspectPicker label="Format" value={project.aspect} onChange={(v: Aspect) => change({ aspect: v }, true)} />
                 <StylePicker label="Style" styles={styles} value={project.style_id} onChange={(v) => change({ style_id: v }, true)} />
-                <Link href="/styles" className="pb-0.5 text-[11.5px] text-faint hover:text-muted">edit styles</Link>
               </div>
             </div>
 
-            <section id="brief" className="mt-12 scroll-mt-16">
-              <SectionTitle n={1}>Brief</SectionTitle>
+            <section id="brief" className="card scroll-mt-20 p-5 sm:p-6">
+              <SectionHeader title="Brief" description="What the video is about. The editor reads this first." />
               <textarea
                 value={project.prompt}
                 onChange={(e) => change({ prompt: e.target.value })}
                 placeholder="What is the piece about? Who is it for? How should it feel? Name the moments it must have, the chapters, how it ends…"
-                className="block min-h-28 w-full resize-none bg-transparent text-[16.5px] leading-[1.7] outline-none placeholder:text-faint"
+                className="field block min-h-32 w-full resize-none px-4 py-3 text-[15.5px] leading-[1.7]"
               />
             </section>
 
             {selectedRun && (
-              <section id="preview" className="mt-12 scroll-mt-16">
-                <SectionTitle n={2}>Preview</SectionTitle>
-                <figure className={clsx(portrait && "mx-auto max-w-[380px]")}>
-                  <div className="rounded-[10px] border border-line bg-paper p-3 shadow-e4">
-                    <video
-                      key={selectedRun.id}
-                      src={`${media.video(selectedRun.id)}#t=0.6`}
-                      preload="metadata"
-                      controls
-                      playsInline
-                      className="block max-h-[70vh] w-full bg-film"
-                    />
-                  </div>
-                  <figcaption className="mt-3 flex items-baseline justify-between gap-4">
-                    <span className="text-[14.5px] font-medium">Version {selectedIndex}</span>
-                    <span className="label">{formatDuration(selectedRun.duration)} · {project.aspect} · {timeAgo(selectedRun.created_at)}</span>
-                  </figcaption>
-                </figure>
+              <section id="preview" className="card scroll-mt-20 p-5 sm:p-6">
+                <SectionHeader
+                  title={`Version ${selectedIndex}`}
+                  description={`${formatDuration(selectedRun.duration)} · ${project.aspect} · Made ${timeAgo(selectedRun.created_at)}`}
+                />
+                <div className={clsx("overflow-hidden rounded-[10px] bg-film shadow-e3", portrait && "mx-auto max-w-[360px]")}>
+                  <video
+                    key={selectedRun.id}
+                    src={`${media.video(selectedRun.id)}#t=0.6`}
+                    preload="metadata"
+                    controls
+                    playsInline
+                    className="block max-h-[70vh] w-full bg-film"
+                  />
+                </div>
               </section>
             )}
 
             {(project.timeline || project.script) && (
-              <section id="timeline" className="mt-12 scroll-mt-16">
-                <SectionTitle
-                  n={selectedRun ? 3 : 2}
-                  action={
-                    <div className="flex gap-4">
-                      {(["timeline", "script"] as const).map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setTab(t)}
-                          className={clsx(
-                            "font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors",
-                            tab === t ? "text-fg underline decoration-accent decoration-1 underline-offset-[6px]" : "text-faint hover:text-muted",
-                          )}
-                        >
-                          {t === "timeline" ? "Timeline" : "Script"}
-                        </button>
-                      ))}
-                    </div>
-                  }
-                >
-                  Timeline
-                </SectionTitle>
+              <section id="timeline" className="card scroll-mt-20 p-5 sm:p-6">
+                <SectionHeader
+                  title={tab === "timeline" ? "Timeline" : "Script"}
+                  action={<Segmented value={tab} onChange={setTab} options={[["timeline", "Timeline"], ["script", "Script"]]} />}
+                />
                 {tab === "timeline" ? (
                   project.timeline ? (
                     <TimelineStrip timeline={project.timeline} assets={project.assets} />
@@ -260,7 +244,7 @@ export default function ProjectPage() {
                     <p className="text-[14px] text-faint">No cut yet.</p>
                   )
                 ) : project.script ? (
-                  <div className="prose-doc text-[15.5px]">
+                  <div className="prose-doc text-[15px]">
                     <ReactMarkdown>{project.script}</ReactMarkdown>
                   </div>
                 ) : (
@@ -269,27 +253,27 @@ export default function ProjectPage() {
               </section>
             )}
 
-            <section id="footage" className="mt-12 scroll-mt-16">
-              <SectionTitle n={(selectedRun ? 3 : 2) + (project.timeline || project.script ? 1 : 0)}>Footage</SectionTitle>
-              <p className="-mt-1 mb-2 text-[13.5px] leading-relaxed text-muted">
-                The editor finds footage on its own in licensed libraries, so everything it uses is cleared for
-                publishing. Add your own clips only if you want them in the cut. Tag a piece as{" "}
-                <span className="font-mono text-[10.5px] tracking-[0.12em] text-accent">REFERENCE</span> to show a look or pace to match.
-              </p>
+            <section id="footage" className="card scroll-mt-20 p-5 sm:p-6">
+              <SectionHeader
+                title="Footage"
+                count={project.assets.length}
+                description="The editor finds licensed footage on its own. Add your own only if you want it in the cut, or tag it Reference to show a look to match."
+              />
               <SourceLine />
               <AssetGrid projectId={project.id} assets={project.assets} onChange={(assets) => setProject({ ...project, assets })} />
             </section>
 
             {credits.length > 0 && (
-              <section id="credits" className="mt-12 scroll-mt-16">
-                <SectionTitle n={(selectedRun ? 4 : 3) + (project.timeline || project.script ? 1 : 0)} action={<CopyCredits credits={credits} />}>
-                  Credits
-                </SectionTitle>
-                <ul className="space-y-1.5 text-[13px] leading-relaxed text-muted">
+              <section id="credits" className="card scroll-mt-20 p-5 sm:p-6">
+                <SectionHeader title="Credits" count={credits.length} description="Footage used in this cut, with its license." action={<CopyCredits credits={credits} />} />
+                <ul className="divide-y divide-line text-[13.5px]">
                   {credits.map((a) => (
-                    <li key={a.id}>
-                      <a href={a.source_url || undefined} target="_blank" rel="noreferrer" className="text-fg underline-offset-2 hover:underline">{a.name}</a>
-                      {a.credit && <> by {a.credit}</>} · {a.source} · <span className="text-faint">{a.license}</span>
+                    <li key={a.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                      <span className="min-w-0 truncate">
+                        <a href={a.source_url || undefined} target="_blank" rel="noreferrer" className="font-medium underline-offset-2 hover:underline">{a.name}</a>
+                        {a.credit && <span className="text-muted"> by {a.credit}</span>}
+                      </span>
+                      <span className="shrink-0 text-[12.5px] text-faint">{a.source} · {a.license}</span>
                     </li>
                   ))}
                 </ul>
@@ -298,11 +282,11 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        {/* Studio log below the entry on small screens */}
+        {/* Activity below the entry on small screens */}
         {!isDesktop && <div className="h-[45vh] shrink-0 border-t border-line">{panel}</div>}
       </div>
 
-      {isDesktop && panelOpen && <div className="w-[384px] shrink-0 border-l border-line">{panel}</div>}
+      {isDesktop && panelOpen && <div className="w-[380px] shrink-0 border-l border-line">{panel}</div>}
     </div>
   );
 }
@@ -313,18 +297,20 @@ function SourceLine() {
   useEffect(() => {
     api.sources().then(setList).catch(() => setList([]));
   }, []);
-  if (!list?.length) return <div className="mb-5" />;
+  if (!list?.length) return null;
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1">
-      <span className="label">Libraries</span>
+    <div className="mb-4 flex flex-wrap items-center gap-1.5">
+      <span className="label mr-1">Searches</span>
       {list.map((s) => (
         <span
           key={s.name}
           title={s.enabled ? `Searching ${s.name}` : `Add ${s.needs_key} to backend/.env to search ${s.name}`}
-          className={clsx("inline-flex items-center gap-1.5 text-[12.5px]", s.enabled ? "text-muted" : "text-faint line-through decoration-line-strong")}
+          className={clsx(s.enabled ? "" : "opacity-55")}
         >
-          <span className={clsx("size-[5px] rounded-full", s.enabled ? "bg-sage" : "bg-line-strong")} />
-          {s.name}
+          <Badge tone={s.enabled ? "sage" : "neutral"}>
+            <span className={clsx("size-[5px] rounded-full bg-current")} />
+            {s.name}
+          </Badge>
         </span>
       ))}
     </div>
@@ -359,9 +345,9 @@ function CopyCredits({ credits }: { credits: Project["assets"] }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button onClick={copy} className="font-mono text-[10.5px] tracking-[0.14em] text-faint uppercase hover:text-fg">
+    <Button size="sm" onClick={copy} icon={copied ? <Check className="size-3.5 text-sage" strokeWidth={1.75} /> : <Copy className="size-3.5" strokeWidth={1.75} />}>
       {copied ? "Copied" : "Copy credits"}
-    </button>
+    </Button>
   );
 }
 
@@ -402,20 +388,15 @@ function SectionBar({ sections, scroller }: { sections: SectionLink[]; scroller:
 
   return (
     <div ref={bar} className="glass sticky top-0 z-20 border-b border-line">
-      <nav className="mx-auto flex max-w-[780px] gap-1 overflow-x-auto px-4 py-1.5 sm:px-10" aria-label="Sections">
-        {sections.map((sec) => (
-          <button
-            key={sec.id}
-            onClick={() => jump(sec.id)}
-            className={clsx(
-              "flex shrink-0 items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] transition-all",
-              active === sec.id ? "bg-paper font-medium text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
-            )}
-          >
-            {sec.label}
-            {sec.count ? <span className="font-mono text-[10px] text-faint">{sec.count}</span> : null}
-          </button>
-        ))}
+      <nav className="mx-auto max-w-[800px] overflow-x-auto px-4 py-2 sm:px-8" aria-label="Sections">
+        <div className="track">
+          {sections.map((sec) => (
+            <button key={sec.id} onClick={() => jump(sec.id)} aria-current={active === sec.id}>
+              {sec.label}
+              {sec.count ? <span className="text-[11.5px] font-normal text-faint">{sec.count}</span> : null}
+            </button>
+          ))}
+        </div>
       </nav>
     </div>
   );

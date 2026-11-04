@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { StudyPlate } from "@/components/artwork";
 import { Wordmark } from "@/components/logo";
-import { Button } from "@/components/ui";
+import { Button, ErrorNote, StepNumber } from "@/components/ui";
 import { api } from "@/lib/api";
 
 const COMMAND = "claude setup-token";
@@ -47,29 +47,26 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
       {/* The plate */}
-      <section className="relative hidden flex-col justify-between border-r border-line bg-soft px-14 py-12 lg:flex">
+      <section className="studio-glow relative hidden flex-col justify-between border-r border-line bg-soft px-14 py-10 lg:flex">
         <Wordmark />
         <figure className="mx-auto w-full max-w-[440px]">
           <div className="relative">
-            <div className="absolute -inset-x-3 inset-y-2 rotate-[3.5deg] rounded-[8px] border border-line bg-sheet shadow-e2" aria-hidden />
-            <div className="absolute -inset-x-1 -inset-y-1 -rotate-[2deg] rounded-[8px] border border-line bg-paper shadow-e2" aria-hidden />
-            <div className="relative rounded-[8px] bg-paper p-2 shadow-e4">
+            <div className="absolute -inset-x-3 inset-y-2 rotate-[3.5deg] rounded-card border border-line bg-bg shadow-e2" aria-hidden />
+            <div className="absolute -inset-x-1 -inset-y-1 -rotate-[2deg] rounded-card border border-line bg-paper shadow-e2" aria-hidden />
+            <div className="relative rounded-card border border-line bg-paper p-2 shadow-e4">
               <StudyPlate className="w-full" />
             </div>
           </div>
-          <figcaption className="mt-5 flex items-baseline justify-between gap-6 border-t border-line pt-3">
-            <span className="label">Plate I</span>
-            <span className="text-right">
-              <span className="block text-[14px] font-medium">Study for a moving picture</span>
-              <span className="block text-[12px] text-faint">Charcoal and sienna on gesso, 2026</span>
-            </span>
+          <figcaption className="mt-6 text-center">
+            <span className="block text-[13.5px] font-medium">Study for a moving picture</span>
+            <span className="label">Charcoal and sienna on gesso, 2026</span>
           </figcaption>
         </figure>
         <blockquote className="max-w-[420px]">
-          <p className="text-[21px] leading-[1.35] font-medium tracking-[-0.015em] text-muted">
+          <p className="text-[19px] leading-[1.4] font-medium tracking-[-0.015em] text-muted">
             “I begin with an idea, and then it becomes something else.”
           </p>
-          <footer className="label mt-3">Pablo Picasso</footer>
+          <footer className="label mt-2">Pablo Picasso</footer>
         </blockquote>
       </section>
 
@@ -80,7 +77,7 @@ export default function LoginPage() {
             <Wordmark />
           </div>
           <p className="label">A studio for moving pictures</p>
-          <h1 className="mt-3 text-[40px] leading-[1.04] font-semibold tracking-[-0.04em]">
+          <h1 className="mt-2.5 text-[34px] leading-[1.08] font-semibold tracking-[-0.035em] sm:text-[40px]">
             Describe the film.<br />
             <span className="text-muted">We&apos;ll make it.</span>
           </h1>
@@ -88,28 +85,28 @@ export default function LoginPage() {
             Describe it in a sentence or a page. Picasso researches the subject, finds licensed footage, writes the piece and cuts it, frame by frame.
           </p>
 
-          <form onSubmit={submit} className="mt-10">
-            <p className="label mb-6 border-b border-line pb-2">Sign in with your Claude account</p>
-            <ol className="space-y-7">
-              <Step n="I" title="In your terminal, run">
-                <div className="mt-2.5 flex items-center gap-3 border border-line-strong bg-paper py-2 pr-2 pl-3.5">
+          <form onSubmit={submit} className="card mt-9 p-6 shadow-e3">
+            <p className="mb-5 text-[15px] font-semibold tracking-[-0.01em]">Sign in with your Claude account</p>
+            <ol className="space-y-6">
+              <Step n={1} title="In your terminal, run">
+                <div className="field mt-2 flex items-center gap-3 bg-bg py-1.5 pr-1.5 pl-3.5 shadow-none">
                   <code className="flex-1 font-mono text-[13px] select-all">{COMMAND}</code>
                   <button
                     type="button"
                     onClick={copy}
-                    className="rounded-[2px] p-1.5 text-faint transition-colors hover:bg-hover hover:text-fg"
+                    className="rounded-[7px] p-1.5 text-faint transition-colors hover:bg-hover hover:text-fg"
                     aria-label="Copy command"
                   >
                     {copied ? <Check className="size-3.5 text-sage" strokeWidth={1.5} /> : <Copy className="size-3.5" strokeWidth={1.5} />}
                   </button>
                 </div>
-                <p className="mt-2 text-[13px] leading-relaxed text-faint">
+                <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
                   It opens Claude in your browser, then prints a long-lived token.
                 </p>
               </Step>
 
-              <Step n="II" title="Paste the token">
-                <div className="relative mt-1">
+              <Step n={2} title="Paste the token">
+                <div className="relative mt-2">
                   <input
                     type={show ? "text" : "password"}
                     value={token}
@@ -118,12 +115,12 @@ export default function LoginPage() {
                     autoComplete="off"
                     spellCheck={false}
                     autoFocus
-                    className="h-10 w-full border-b border-line-strong bg-transparent pr-8 font-mono text-[13px] outline-none placeholder:text-faint focus:border-fg"
+                    className="field h-10 w-full pr-10 pl-3.5 font-mono text-[13px]"
                   />
                   <button
                     type="button"
                     onClick={() => setShow((s) => !s)}
-                    className="absolute top-1/2 right-0 -translate-y-1/2 p-1 text-faint hover:text-fg"
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-[7px] p-1.5 text-faint hover:bg-hover hover:text-fg"
                     aria-label={show ? "Hide token" : "Show token"}
                   >
                     {show ? <EyeOff className="size-3.5" strokeWidth={1.5} /> : <Eye className="size-3.5" strokeWidth={1.5} />}
@@ -131,28 +128,28 @@ export default function LoginPage() {
                 </div>
               </Step>
 
-              <Step n="III" title="Name your studio" optional>
+              <Step n={3} title="Name your studio" optional>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Teddy's studio"
                   maxLength={80}
-                  className="mt-1 h-10 w-full border-b border-line-strong bg-transparent text-[15px] outline-none placeholder:text-faint focus:border-fg"
+                  className="field mt-2 h-10 w-full px-3.5 text-[14px]"
                 />
               </Step>
             </ol>
 
             {error && (
-              <p className="mt-6 border-l-2 border-brick bg-brick-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-brick">{error}</p>
+              <ErrorNote className="mt-6">{error}</ErrorNote>
             )}
 
-            <Button type="submit" variant="primary" size="lg" className="mt-9 w-full" loading={busy} disabled={!looksValid}>
+            <Button type="submit" variant="primary" size="lg" className="mt-7 w-full" loading={busy} disabled={!looksValid}>
               {busy ? "Checking with Claude" : "Enter the studio"}
               {!busy && <ArrowRight className="size-4" strokeWidth={1.5} />}
             </Button>
           </form>
 
-          <p className="mt-8 text-[12px] leading-relaxed text-faint">
+          <p className="mt-6 px-1 text-[12px] leading-relaxed text-faint">
             Your token is encrypted at rest and only used to run your own editor. No Claude Code yet?{" "}
             <code className="font-mono">npm i -g @anthropic-ai/claude-code</code>. An Anthropic API key (
             <code className="font-mono">sk-ant-api…</code>) works here too.
@@ -163,12 +160,12 @@ export default function LoginPage() {
   );
 }
 
-function Step({ n, title, optional, children }: { n: string; title: string; optional?: boolean; children: React.ReactNode }) {
+function Step({ n, title, optional, children }: { n: number; title: string; optional?: boolean; children: React.ReactNode }) {
   return (
-    <li className="grid grid-cols-[34px_1fr] gap-x-2">
-      <span className="font-mono text-[11px] leading-[22px] text-faint">{n}.</span>
-      <div>
-        <div className="text-[14px] leading-[22px] font-medium">
+    <li className="flex gap-3">
+      <StepNumber n={n} />
+      <div className="min-w-0 flex-1">
+        <div className="text-[14px] leading-6 font-medium">
           {title}
           {optional && <span className="ml-2 font-normal text-faint">optional</span>}
         </div>

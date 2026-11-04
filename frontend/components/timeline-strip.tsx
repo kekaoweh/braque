@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { useState } from "react";
+import { Badge } from "@/components/ui";
 import { Asset, Clip, formatDuration, media, Timeline } from "@/lib/api";
 
 const GAP = 3;
@@ -25,7 +26,7 @@ export function TimelineStrip({ timeline, assets }: { timeline: Timeline; assets
     <div>
       <div className="overflow-x-auto pb-1">
         <div className="inline-flex min-w-full flex-col gap-2">
-          <div className="film-strip px-2 py-[16px]" style={{ width: stripWidth + 16 }}>
+          <div className="film-strip rounded-[10px] px-2 py-[16px] shadow-e2" style={{ width: stripWidth + 16 }}>
             <div className="flex" style={{ gap: GAP }} onMouseLeave={() => setActive(null)}>
               {timeline.clips.map((c, i) => {
                 const asset = c.asset_id ? byId.get(c.asset_id) : undefined;
@@ -68,17 +69,17 @@ export function TimelineStrip({ timeline, assets }: { timeline: Timeline; assets
             </div>
           </div>
           {music && (
-            <div className="flex h-7 items-center gap-3 border border-line px-3" style={{ width: stripWidth + 16 }}>
-              <span className="label !text-accent">Score</span>
+            <div className="flex h-8 items-center gap-3 rounded-control border border-line bg-bg px-3" style={{ width: stripWidth + 16 }}>
+              <Badge tone="dusk">Music</Badge>
               <span className="min-w-0 truncate text-[12.5px] text-muted">{music.name}</span>
-              <span className="ml-auto shrink-0 font-mono text-[10.5px] text-faint">{Math.round((timeline.music?.volume ?? 0) * 100)}%</span>
+              <span className="ml-auto shrink-0 text-[11.5px] text-faint tabular-nums">{Math.round((timeline.music?.volume ?? 0) * 100)}%</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Shot notes */}
-      <div className="mt-3 min-h-[64px] border-l border-line-strong py-1 pl-4">
+      <div className="mt-3 min-h-[68px] rounded-control bg-bg px-4 py-3">
         {clip && active !== null ? (
           <div className="fade-up">
             <div className="label">
@@ -87,12 +88,12 @@ export function TimelineStrip({ timeline, assets }: { timeline: Timeline; assets
               {clip.kind === "asset" && clipAsset?.kind === "video" ? ` from ${clip.source_start.toFixed(1)}s` : ""}
               {clip.motion !== "none" ? ` · ${clip.motion.replace("_", " ")}` : ""}
             </div>
-            {clip.text?.text && <div className="mt-1 text-[15px] font-medium leading-snug">“{clip.text.text}”</div>}
+            {clip.text?.text && <div className="mt-1 text-[14.5px] font-medium leading-snug">“{clip.text.text}”</div>}
             {clip.note && <div className="mt-0.5 text-[13px] leading-relaxed text-muted">{clip.note}</div>}
           </div>
         ) : (
           <p className="text-[13.5px] text-faint">
-            {timeline.clips.length} shots, {formatDuration(total)}. Hover a frame to read the editor&apos;s note on it.
+            {timeline.clips.length} shots, {formatDuration(total)}. Hover a shot to see the editor&apos;s note.
           </p>
         )}
       </div>

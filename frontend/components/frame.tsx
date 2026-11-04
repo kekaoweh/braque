@@ -3,14 +3,24 @@
 import clsx from "clsx";
 import { PointerEvent, ReactNode, useRef } from "react";
 
-const MAX_TILT = 5; // degrees
+const MAX_TILT = 3.5; // degrees
 
 /**
- * A matted frame on the wall: hairline edge, paper mat, the work inset. It tilts gently toward
- * the cursor with a soft sheen, like a print catching gallery light (mouse only; off for
- * reduced motion via CSS).
+ * A card that turns gently toward the cursor with a soft sheen, like a print catching
+ * gallery light (mouse only; off for reduced motion via CSS). Media goes in `media`,
+ * the caption in `children`, so every gallery card in the app has the same anatomy.
  */
-export function Frame({ children, className, ratio = "aspect-[4/3]" }: { children: ReactNode; className?: string; ratio?: string }) {
+export function TiltCard({
+  media,
+  children,
+  ratio = "aspect-video",
+  className,
+}: {
+  media: ReactNode;
+  children?: ReactNode;
+  ratio?: string;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -38,29 +48,45 @@ export function Frame({ children, className, ratio = "aspect-[4/3]" }: { childre
       ref={ref}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
-      className={clsx(
-        "tilt relative rounded-[6px] border border-line bg-paper p-2.5 shadow-e2 group-hover:shadow-e4",
-        className,
-      )}
+      className={clsx("tilt card relative overflow-hidden p-1.5 group-hover:shadow-e3", className)}
     >
-      <div className={clsx("relative overflow-hidden rounded-[3px] bg-soft shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]", ratio)}>
-        {children}
-      </div>
-      <div className="tilt-sheen rounded-[6px]" />
+      <div className={clsx("relative overflow-hidden rounded-[9px] bg-soft", ratio)}>{media}</div>
+      {children && <div className="px-2.5 pt-3 pb-2">{children}</div>}
+      <div className="tilt-sheen" />
     </div>
   );
 }
 
-/** Empty canvas for a work with no materials yet. */
-export function BlankCanvas({ label }: { label?: string }) {
+// Earth-tone pairs for covers of works with no footage yet; picked by id so each work keeps its own.
+const COVERS = [
+  ["#d9cbbb", "#b99782"],
+  ["#d4d3c3", "#9da38a"],
+  ["#d6cfd0", "#a99ca6"],
+  ["#dccdbd", "#c09a7c"],
+  ["#d0cbc0", "#958c80"],
+];
+
+const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+/**
+ * Placeholder cover for a work without footage: a split plane in two earth tones with the
+ * eye from the logo, so empty works still look intentional (and distinct from each other).
+ */
+export function Cover({ seed, label, small }: { seed: string; label?: string; small?: boolean }) {
+  const [a, b] = COVERS[hash(seed) % COVERS.length];
   return (
-    <div className="absolute inset-0">
-      <svg viewBox="0 0 100 75" preserveAspectRatio="none" className="absolute inset-0 size-full" aria-hidden>
-        <path d="M58 0H100V75H38Z" className="fill-hover" />
-        <path d="M0 60L58 0" className="stroke-line-strong" strokeWidth="0.3" vectorEffect="non-scaling-stroke" />
+    <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${a}, ${b})` }}>
+      <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" aria-hidden>
+        <path d="M96 0H160V90H58Z" fill="#fff" opacity="0.14" />
+        {!small && (
+          <g fill="none" stroke="#2b2622" strokeOpacity="0.35" strokeWidth="1.1">
+            <path d="M62 46C70 36 90 36 98 46C90 55 70 55 62 46Z" />
+            <circle cx="82" cy="44" r="4.5" fill="#2b2622" fillOpacity="0.28" stroke="none" />
+          </g>
+        )}
       </svg>
       {label && (
-        <span className="absolute inset-0 flex items-center justify-center text-[13px] text-faint">{label}</span>
+        <span className="absolute inset-x-0 bottom-3 text-center text-[12px] font-medium text-[#2b2622]/55">{label}</span>
       )}
     </div>
   );

@@ -71,8 +71,8 @@ try {
   // 2. Studio home: compose a new video
   await page.goto(`${BASE}/`);
   await page.getByRole("heading", { name: /What shall we/ }).waitFor();
-  ok("Studio loads", await page.getByText("The studio of UI Test").isVisible());
-  await page.getByRole("button", { name: /A thirty-second vertical teaser/ }).click();
+  ok("Studio greets the signed-in studio by name", await page.getByText(/, UI Test$/).isVisible());
+  await page.getByRole("button", { name: "Product launch teaser" }).click();
   ok("an idea fills the brief", (await page.getByPlaceholder(/Describe the piece/).inputValue()).includes("thirty-second vertical teaser"));
   await page.getByRole("button", { name: /1 min/ }).click();
   await page.getByRole("button", { name: "30 sec", exact: true }).click();
@@ -112,7 +112,11 @@ try {
   await page.getByText("music.mp3").waitFor({ timeout: 30000 });
   ok("three files upload as cards", (await page.getByPlaceholder("A note for the editor…").count()) === 3);
   ok("audio is tagged Score automatically", (await page.getByRole("button", { name: "Score", exact: true }).count()) === 1);
-  const thumbs = await page.locator('main img[src*="/thumb"], section img[src*="/thumb"]').evaluateAll((els) => els.map((e) => e.naturalWidth > 0));
+  // Thumbnails load lazily: bring them into view and give them a moment before checking.
+  const thumbImgs = page.locator('section#footage img[src*="/thumb"]');
+  await thumbImgs.last().scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => [...document.querySelectorAll('section#footage img[src*="/thumb"]')].every((e) => e.complete && e.naturalWidth > 0), null, { timeout: 15000 }).catch(() => {});
+  const thumbs = await thumbImgs.evaluateAll((els) => els.map((e) => e.naturalWidth > 0));
   ok("video and photo thumbnails render", thumbs.length >= 2 && thumbs.every(Boolean), `${thumbs.length} thumbs`);
   await page.getByRole("button", { name: "Footage", exact: true }).nth(1).click();
   await page.getByRole("button", { name: /Reference/ }).click();

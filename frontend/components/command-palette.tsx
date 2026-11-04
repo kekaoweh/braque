@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/app-context";
 import { STATUS_LABELS } from "@/components/status";
-import { plate } from "@/components/ui";
 import { api, formatLength } from "@/lib/api";
 
 const OPEN_EVENT = "picasso:open-palette";
@@ -19,7 +18,7 @@ export function openPalette() {
 type Item = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void | Promise<void> };
 
 export function CommandPalette() {
-  const { projects, refreshProjects, plateOf } = useApp();
+  const { projects, refreshProjects } = useApp();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -67,7 +66,7 @@ export function CommandPalette() {
       id: p.id,
       group: "Your videos",
       label: p.name || "Untitled",
-      hint: `${plate(plateOf(p.id))} · ${formatLength(p.target_seconds)}${p.latest_status ? ` · ${STATUS_LABELS[p.latest_status]}` : ""}`,
+      hint: `${formatLength(p.target_seconds)}${p.latest_status ? ` · ${STATUS_LABELS[p.latest_status]}` : ""}`,
       icon: <Film className="size-4" strokeWidth={1.5} />,
       run: go(`/projects/${p.id}`),
     }));
@@ -79,7 +78,7 @@ export function CommandPalette() {
     const q = query.trim().toLowerCase();
     if (!q) return all;
     return all.filter((i) => `${i.label} ${i.hint ?? ""} ${i.group}`.toLowerCase().includes(q));
-  }, [projects, query, router, refreshProjects, plateOf]);
+  }, [projects, query, router, refreshProjects]);
 
   useEffect(() => setIndex(0), [query]);
   useEffect(() => {
@@ -108,7 +107,7 @@ export function CommandPalette() {
       <div
         role="dialog"
         aria-label="Quick switcher"
-        className="fade-up relative w-full max-w-[560px] overflow-hidden rounded-[12px] border border-line bg-paper/95 shadow-e4 backdrop-blur-xl"
+        className="fade-up relative w-full max-w-[560px] overflow-hidden rounded-sheet border border-line bg-paper/95 shadow-e4 backdrop-blur-xl"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
       >
@@ -124,7 +123,7 @@ export function CommandPalette() {
             className="h-12 flex-1 bg-transparent text-[15px] outline-none placeholder:text-faint"
             aria-label="Search"
           />
-          <kbd className="rounded-[4px] border border-line bg-bg px-1.5 py-0.5 font-mono text-[10px] text-faint">ESC</kbd>
+          <kbd className="kbd">Esc</kbd>
         </div>
         <div ref={list} className="max-h-[52vh] overflow-y-auto p-1.5" role="listbox">
           {items.length === 0 && <p className="px-3 py-8 text-center text-[13.5px] text-faint">Nothing matches “{query}”.</p>}
@@ -133,7 +132,7 @@ export function CommandPalette() {
             lastGroup = item.group;
             return (
               <div key={item.id}>
-                {header && <div className="label px-3 pt-3 pb-1.5">{header}</div>}
+                {header && <div className="label px-3 pt-3 pb-1">{header}</div>}
                 <button
                   data-index={i}
                   role="option"
@@ -141,25 +140,25 @@ export function CommandPalette() {
                   onMouseMove={() => setIndex(i)}
                   onClick={() => choose(item)}
                   className={clsx(
-                    "flex w-full items-center gap-3 rounded-[7px] px-3 py-2 text-left transition-colors",
+                    "flex w-full items-center gap-3 rounded-control px-3 py-2 text-left transition-colors",
                     i === index ? "bg-active text-fg" : "text-muted",
                   )}
                 >
-                  <span className={clsx("flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-line bg-bg", i === index && "text-accent")}>
+                  <span className={clsx("flex size-7 shrink-0 items-center justify-center rounded-[8px] border border-line bg-paper shadow-e1", i === index ? "text-accent" : "text-faint")}>
                     {item.icon}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[14px]">{item.label}</span>
-                  {item.hint && <span className="shrink-0 font-mono text-[10.5px] tracking-wider text-faint">{item.hint}</span>}
+                  {item.hint && <span className="shrink-0 text-[12px] text-faint">{item.hint}</span>}
                   {i === index && <CornerDownLeft className="size-3.5 shrink-0 text-faint" strokeWidth={1.5} />}
                 </button>
               </div>
             );
           })}
         </div>
-        <div className="flex items-center gap-4 border-t border-line px-4 py-2 font-mono text-[10px] tracking-wider text-faint">
-          <span>↑↓ MOVE</span>
-          <span>↵ OPEN</span>
-          <span className="ml-auto">⌘K TOGGLE</span>
+        <div className="flex items-center gap-4 border-t border-line bg-bg/60 px-4 py-2 text-[12px] text-faint">
+          <span className="flex items-center gap-1.5"><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> to move</span>
+          <span className="flex items-center gap-1.5"><kbd className="kbd">↵</kbd> to open</span>
+          <span className="ml-auto flex items-center gap-1.5"><kbd className="kbd">⌘K</kbd> to close</span>
         </div>
       </div>
     </div>

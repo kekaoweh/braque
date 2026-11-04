@@ -1,29 +1,12 @@
 "use client";
 
 import clsx from "clsx";
-import { Check } from "lucide-react";
-import { ReactNode, useState } from "react";
-import { Menu, MenuItem } from "@/components/ui";
+import { Check, Clock, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Menu, MenuItem, MenuLabel, SelectButton } from "@/components/ui";
 import { Aspect, formatLength, Style } from "@/lib/api";
 
 export const LENGTHS = [15, 30, 60, 90, 180, 300, 600, 900, 1200, 1800];
-
-/** A spec-sheet field: small label over an underlined value that opens a menu. */
-function Field({ label, open, toggle, children }: { label?: string; open: boolean; toggle: () => void; children: ReactNode }) {
-  return (
-    <button type="button" onClick={toggle} className="group flex flex-col items-start text-left">
-      {label && <span className="label mb-1">{label}</span>}
-      <span
-        className={clsx(
-          "border-b border-dotted pb-px text-[14px] transition-colors",
-          open ? "border-fg text-fg" : "border-line-strong text-fg/85 group-hover:border-fg group-hover:text-fg",
-        )}
-      >
-        {children}
-      </span>
-    </button>
-  );
-}
 
 export function LengthPicker({ value, onChange, label }: { value: number; onChange: (v: number) => void; label?: string }) {
   const [custom, setCustom] = useState("");
@@ -31,19 +14,23 @@ export function LengthPicker({ value, onChange, label }: { value: number; onChan
     <Menu
       width="w-52"
       trigger={({ open, toggle }) => (
-        <Field label={label} open={open} toggle={toggle}>{formatLength(value)}</Field>
+        <SelectButton label={label} open={open} onClick={toggle} icon={<Clock className="size-3.5" strokeWidth={1.75} />}>
+          {formatLength(value)}
+        </SelectButton>
       )}
     >
       {(close) => (
         <>
-          <div className="label px-2.5 pt-1.5 pb-1">Running time</div>
-          {LENGTHS.map((s) => (
-            <MenuItem key={s} onClick={() => { onChange(s); close(); }} hint={s === value ? <Check className="size-3.5" strokeWidth={1.5} /> : null}>
-              {formatLength(s)}
-            </MenuItem>
-          ))}
+          <MenuLabel>Running time</MenuLabel>
+          <div className="max-h-64 overflow-y-auto">
+            {LENGTHS.map((s) => (
+              <MenuItem key={s} active={s === value} onClick={() => { onChange(s); close(); }} hint={s === value ? <Check className="size-3.5" strokeWidth={1.75} /> : null}>
+                {formatLength(s)}
+              </MenuItem>
+            ))}
+          </div>
           <form
-            className="mt-1 border-t border-line px-1 pt-1.5 pb-0.5"
+            className="mt-1 border-t border-line p-1 pt-2"
             onSubmit={(e) => {
               e.preventDefault();
               const secs = parseDuration(custom);
@@ -54,7 +41,7 @@ export function LengthPicker({ value, onChange, label }: { value: number; onChan
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               placeholder="Custom, e.g. 2:30 or 45s"
-              className="h-7 w-full border-b border-line bg-transparent px-1.5 text-[13px] outline-none placeholder:text-faint focus:border-fg"
+              className="field h-8 w-full px-2.5 text-[13px]"
             />
           </form>
         </>
@@ -76,9 +63,9 @@ function parseDuration(text: string): number | null {
 }
 
 /** Proportional outline of the frame, so the format reads at a glance. */
-function FrameIcon({ aspect }: { aspect: Aspect }) {
-  const [w, h] = { "16:9": [16, 9], "9:16": [9, 16], "1:1": [12, 12], "4:5": [11, 13.75] }[aspect];
-  return <span className="inline-block border border-current" style={{ width: w, height: h }} />;
+export function FrameIcon({ aspect }: { aspect: Aspect }) {
+  const [w, h] = { "16:9": [14, 8], "9:16": [8, 14], "1:1": [11, 11], "4:5": [10, 12.5] }[aspect];
+  return <span className="inline-block rounded-[2px] border-[1.5px] border-current" style={{ width: w, height: h }} />;
 }
 
 const ASPECTS: { value: Aspect; label: string }[] = [
@@ -94,18 +81,21 @@ export function AspectPicker({ value, onChange, label }: { value: Aspect; onChan
     <Menu
       width="w-48"
       trigger={({ open, toggle }) => (
-        <Field label={label} open={open} toggle={toggle}>
+        <SelectButton label={label} open={open} onClick={toggle} icon={<span className="flex w-3.5 justify-center"><FrameIcon aspect={current.value} /></span>}>
           {current.label} <span className="text-faint">{current.value}</span>
-        </Field>
+        </SelectButton>
       )}
     >
-      {(close) =>
-        ASPECTS.map((a) => (
-          <MenuItem key={a.value} icon={<FrameIcon aspect={a.value} />} active={a.value === value} hint={a.value} onClick={() => { onChange(a.value); close(); }}>
-            {a.label}
-          </MenuItem>
-        ))
-      }
+      {(close) => (
+        <>
+          <MenuLabel>Format</MenuLabel>
+          {ASPECTS.map((a) => (
+            <MenuItem key={a.value} icon={<FrameIcon aspect={a.value} />} active={a.value === value} hint={a.value} onClick={() => { onChange(a.value); close(); }}>
+              {a.label}
+            </MenuItem>
+          ))}
+        </>
+      )}
     </Menu>
   );
 }
@@ -126,27 +116,30 @@ export function StylePicker({
     <Menu
       width="w-80"
       trigger={({ open, toggle }) => (
-        <Field label={label} open={open} toggle={toggle}>
-          <span className="text-[14px] font-medium">{current?.name ?? "Choose a style"}</span>
-        </Field>
+        <SelectButton label={label} open={open} onClick={toggle} icon={<Sparkles className="size-3.5" strokeWidth={1.75} />}>
+          {current?.name ?? "Choose a style"}
+        </SelectButton>
       )}
     >
       {(close) => (
-        <div className="max-h-80 overflow-y-auto">
-          {styles.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => { onChange(s.id); close(); }}
-              className={clsx("block w-full rounded-[2px] px-2.5 py-2 text-left hover:bg-hover", s.id === value && "bg-hover")}
-            >
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="text-[14px] font-semibold">{s.name}</span>
-                <span className="font-mono text-[10px] tracking-wider text-faint">~{s.pacing_seconds}s</span>
-              </span>
-              <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-muted">{s.description}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <MenuLabel>Style</MenuLabel>
+          <div className="max-h-80 overflow-y-auto">
+            {styles.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => { onChange(s.id); close(); }}
+                className={clsx("block w-full rounded-[8px] px-2.5 py-2 text-left transition-colors hover:bg-hover", s.id === value && "bg-hover")}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="text-[13.5px] font-medium">{s.name}</span>
+                  {s.id === value ? <Check className="size-3.5 text-accent" strokeWidth={1.75} /> : <span className="text-[11.5px] text-faint">~{s.pacing_seconds}s shots</span>}
+                </span>
+                <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-muted">{s.description}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </Menu>
   );

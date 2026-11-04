@@ -7,13 +7,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/components/app-context";
 import { openPalette } from "@/components/command-palette";
+import { Cover } from "@/components/frame";
 import { Wordmark } from "@/components/logo";
 import { STATUS_LABELS } from "@/components/status";
-import { Button, Menu, MenuItem, plate } from "@/components/ui";
+import { Button, IconButton, Menu, MenuItem, MenuLabel } from "@/components/ui";
 import { ACTIVE_STATUSES, api, media } from "@/lib/api";
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
-  const { user, setUser, projects, refreshProjects, plateOf } = useApp();
+  const { user, setUser, projects, refreshProjects } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -47,48 +48,48 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="flex h-full w-[256px] flex-col">
-      <div className="flex items-center justify-between px-4 pt-4 pb-4">
-        <Link href="/" onClick={onClose} aria-label="Picasso home" className="rounded-[6px] px-1 py-0.5">
+    <aside className="flex h-full w-[248px] flex-col">
+      <div className="flex h-14 items-center justify-between px-4">
+        <Link href="/" onClick={onClose} aria-label="Picasso home" className="rounded-control px-1 py-0.5">
           <Wordmark />
         </Link>
         {onClose && (
-          <button onClick={onClose} className="rounded-[6px] p-1.5 text-faint hover:bg-hover hover:text-fg" aria-label="Close sidebar">
+          <IconButton onClick={onClose} aria-label="Close sidebar">
             <PanelLeftClose className="size-4" strokeWidth={1.5} />
-          </button>
+          </IconButton>
         )}
       </div>
 
-      <div className="space-y-2 px-3">
-        <button
-          onClick={() => { onClose?.(); openPalette(); }}
-          className="flex h-9 w-full items-center gap-2.5 rounded-[7px] border border-line bg-paper/70 px-3 text-left text-[13px] text-faint shadow-e1 transition-colors hover:border-line-strong hover:text-muted"
-        >
-          <Search className="size-3.5" strokeWidth={1.5} />
-          <span className="flex-1">Search</span>
-          <kbd className="rounded-[4px] border border-line bg-bg px-1.5 font-mono text-[10px]">⌘K</kbd>
-        </button>
+      <div className="space-y-2 px-3 pt-1">
         <Button variant="primary" className="w-full" onClick={newVideo} loading={creating} icon={<Plus className="size-4" strokeWidth={1.75} />}>
           New video
         </Button>
+        <button
+          onClick={() => { onClose?.(); openPalette(); }}
+          className="field flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13px] text-faint"
+        >
+          <Search className="size-3.5" strokeWidth={1.75} />
+          <span className="flex-1">Search</span>
+          <kbd className="kbd">⌘K</kbd>
+        </button>
       </div>
 
-      <nav className="mt-5 space-y-0.5 px-3">
-        <NavLink href="/" active={pathname === "/"} icon={<Home className="size-4" strokeWidth={1.5} />} onClick={onClose}>
+      <nav className="mt-4 space-y-0.5 px-3">
+        <NavLink href="/" active={pathname === "/"} icon={<Home className="size-4" strokeWidth={1.75} />} onClick={onClose}>
           Studio
         </NavLink>
-        <NavLink href="/styles" active={pathname === "/styles"} icon={<Palette className="size-4" strokeWidth={1.5} />} onClick={onClose}>
+        <NavLink href="/styles" active={pathname === "/styles"} icon={<Palette className="size-4" strokeWidth={1.75} />} onClick={onClose}>
           Styles
         </NavLink>
       </nav>
 
-      <div className="mt-6 flex items-center justify-between px-5 pb-2">
+      <div className="mt-5 flex items-center justify-between px-5 pb-1.5">
         <span className="label">Your videos</span>
-        <span className="font-mono text-[10px] text-faint">{projects.length}</span>
+        {projects.length > 0 && <span className="label">{projects.length}</span>}
       </div>
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
         {projects.length === 0 && (
-          <p className="px-2 py-1 text-[13px] leading-relaxed text-faint">No videos yet. Start one with New video.</p>
+          <p className="px-2 py-1 text-[13px] leading-relaxed text-faint">Videos you make will show up here.</p>
         )}
         {projects.map((p) => {
           const active = pathname === `/projects/${p.id}`;
@@ -98,20 +99,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               key={p.id}
               href={`/projects/${p.id}`}
               onClick={onClose}
-              title={`${plate(plateOf(p.id))} · ${p.name || "Untitled"}`}
+              title={p.name || "Untitled"}
               className={clsx(
-                "group flex items-center gap-2.5 rounded-[7px] p-1.5 pr-2 transition-all",
+                "group flex items-center gap-2.5 rounded-control p-1.5 pr-2 transition-colors",
                 active ? "bg-paper text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
               )}
             >
-              <span className="relative h-[26px] w-[36px] shrink-0 overflow-hidden rounded-[4px] border border-line bg-soft">
+              <span className="relative h-[24px] w-[36px] shrink-0 overflow-hidden rounded-[5px] bg-soft ring-1 ring-line">
                 {p.cover_asset_id ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={media.thumb(p.cover_asset_id)} alt="" className="gallery-img size-full object-cover" loading="lazy" />
                 ) : (
-                  <span className="absolute inset-0 flex items-center justify-center font-mono text-[8.5px] text-faint">
-                    {String(plateOf(p.id)).padStart(2, "0")}
-                  </span>
+                  <Cover seed={p.id} small />
                 )}
               </span>
               <span className="min-w-0 flex-1 truncate text-[13.5px]">{p.name || "Untitled"}</span>
@@ -123,36 +122,35 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         })}
       </div>
 
-      <div className="border-t border-line px-3 pt-2 pb-3">
+      <div className="border-t border-line p-3">
         <Menu
           width="w-60"
+          up
+          className="w-full"
           trigger={({ toggle }) => (
-            <button onClick={toggle} className="flex w-full items-center gap-2.5 rounded-[7px] px-2 py-1.5 text-left hover:bg-hover">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[linear-gradient(135deg,var(--accent),color-mix(in_srgb,var(--accent)_60%,var(--fg)))] text-[12px] font-semibold text-white shadow-e1">
+            <button onClick={toggle} className="flex w-full items-center gap-2.5 rounded-control p-1.5 text-left transition-colors hover:bg-hover">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),color-mix(in_srgb,var(--accent)_60%,var(--fg)))] text-[12.5px] font-semibold text-white shadow-e1">
                 {user.name.slice(0, 1).toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium">{user.name}</span>
-                <span className="block text-[11px] text-faint">{user.token_kind === "oauth" ? "Claude account" : "API key"}</span>
+                <span className="block text-[11.5px] text-faint">{user.token_kind === "oauth" ? "Claude account" : "API key"}</span>
               </span>
-              <ChevronsUpDown className="size-3.5 text-faint" strokeWidth={1.5} />
+              <ChevronsUpDown className="size-3.5 text-faint" strokeWidth={1.75} />
             </button>
           )}
         >
           {(close) => (
             <>
-              <div className="px-2.5 pt-2 pb-2">
-                <div className="label">Connected</div>
-                <div className="mt-1 font-mono text-[11px] text-muted">{user.token_hint}</div>
-              </div>
+              <MenuLabel>Connected as <span className="font-mono text-muted">{user.token_hint}</span></MenuLabel>
               <div className="my-1 h-px bg-line" />
-              <MenuItem icon={<Pencil className="size-3.5" strokeWidth={1.5} />} onClick={() => { close(); rename(); }}>
+              <MenuItem icon={<Pencil className="size-3.5" strokeWidth={1.75} />} onClick={() => { close(); rename(); }}>
                 Rename studio
               </MenuItem>
-              <MenuItem icon={<LogOut className="size-3.5" strokeWidth={1.5} />} onClick={signOut}>
+              <MenuItem icon={<LogOut className="size-3.5" strokeWidth={1.75} />} onClick={signOut}>
                 Sign out
               </MenuItem>
-              <MenuItem icon={<ShieldOff className="size-3.5" strokeWidth={1.5} />} onClick={forget} danger>
+              <MenuItem icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />} onClick={forget} danger>
                 Disconnect Claude
               </MenuItem>
             </>
@@ -180,8 +178,9 @@ function NavLink({
     <Link
       href={href}
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={clsx(
-        "flex items-center gap-2.5 rounded-[7px] px-2.5 py-1.5 text-[14px] font-medium transition-all",
+        "flex h-9 items-center gap-2.5 rounded-control px-2.5 text-[13.5px] font-medium transition-colors",
         active ? "bg-paper text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
       )}
     >

@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { StatusPill } from "@/components/status";
-import { Button, Spinner } from "@/components/ui";
+import { Button, ErrorNote, Spinner, StepNumber } from "@/components/ui";
 import { ACTIVE_STATUSES, api, Asset, formatDuration, media, Run, RunEvent, timeAgo } from "@/lib/api";
 
 /** Live event stream for one run; reconnects from the last seen event. */
@@ -139,9 +139,9 @@ export function AgentPanel({
   };
 
   return (
-    <div className="flex h-full flex-col bg-paper">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-5">
-        <span className="label !text-muted">Activity</span>
+    <div className="flex h-full flex-col bg-paper/60">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
+        <span className="text-[14px] font-semibold tracking-[-0.01em]">Activity</span>
         {status && <StatusPill status={status} />}
       </div>
 
@@ -151,54 +151,54 @@ export function AgentPanel({
         ) : (
           <div>
             {latest.instruction && (
-              <div className="mb-5 border-l-2 border-accent/60 pl-3.5">
-                <div className="label mb-1">Your direction</div>
-                <p className="text-[14px] leading-relaxed">{latest.instruction}</p>
+              <div className="mb-5 rounded-control border border-line bg-bg px-3.5 py-2.5">
+                <div className="label mb-0.5">Your direction</div>
+                <p className="text-[13.5px] leading-relaxed">{latest.instruction}</p>
               </div>
             )}
-            <ol className="space-y-3.5">
+            <ol className="space-y-3">
               {events.map((e) => {
                 if (e.type === "message")
                   return (
-                    <li key={e.id} className="fade-up border-y border-line py-4">
-                      <div className="label mb-2">Editor&apos;s note · {clock(e.at)}</div>
-                      <div className="prose-doc text-[14px] leading-relaxed text-fg">
+                    <li key={e.id} className="fade-up card px-4 py-3.5 shadow-none">
+                      <div className="label mb-1.5">Editor&apos;s note · {clock(e.at)}</div>
+                      <div className="prose-doc text-[13.5px] leading-relaxed text-fg">
                         <ReactMarkdown>{e.text ?? ""}</ReactMarkdown>
                       </div>
                     </li>
                   );
                 if (e.type === "status" && e.status === "error")
                   return (
-                    <li key={e.id} className="fade-up border-l-2 border-brick bg-brick-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-brick">
-                      {e.error || latest.error || "Something went wrong."}
+                    <li key={e.id} className="fade-up">
+                      <ErrorNote>{e.error || latest.error || "Something went wrong."}</ErrorNote>
                     </li>
                   );
                 const body = entry(e);
                 if (!body) return null;
                 return (
-                  <li key={e.id} className="fade-up grid grid-cols-[42px_1fr] items-baseline text-[13.5px] text-muted">
-                    <span className="font-mono text-[10.5px] text-faint">{clock(e.at)}</span>
+                  <li key={e.id} className="fade-up grid grid-cols-[44px_1fr] items-baseline text-[13.5px] leading-relaxed text-muted">
+                    <span className="text-[11.5px] text-faint tabular-nums">{clock(e.at)}</span>
                     <span className="min-w-0">{body}</span>
                   </li>
                 );
               })}
             </ol>
             {active && (
-              <div className="mt-5 grid grid-cols-[42px_1fr] items-center">
+              <div className="mt-4 grid grid-cols-[44px_1fr] items-center">
                 <Spinner className="text-accent" />
                 {status === "rendering" && progress?.total ? (
                   <div>
-                    <div className="mb-1.5 flex justify-between font-mono text-[10.5px] tracking-wider text-faint">
-                      <span>DEVELOPING SHOTS</span>
-                      <span>{progress.done} / {progress.total}</span>
+                    <div className="mb-1.5 flex justify-between text-[12px] text-muted">
+                      <span>Rendering shots</span>
+                      <span className="tabular-nums text-faint">{progress.done} / {progress.total}</span>
                     </div>
-                    <div className="h-px bg-line-strong">
-                      <div className="h-px bg-accent transition-all duration-500" style={{ width: `${((progress.done ?? 0) / progress.total) * 100}%` }} />
+                    <div className="h-1.5 overflow-hidden rounded-full bg-active">
+                      <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${((progress.done ?? 0) / progress.total) * 100}%` }} />
                     </div>
                   </div>
                 ) : (
                   <span className="text-[13.5px] text-muted">
-                    {status === "queued" ? "Preparing the studio…" : status === "rendering" ? "Rendering…" : "At work…"}
+                    {status === "queued" ? "Getting ready…" : status === "rendering" ? "Rendering…" : "Working…"}
                   </span>
                 )}
               </div>
@@ -208,25 +208,26 @@ export function AgentPanel({
         )}
 
         {runs.length > 1 && (
-          <div className="mt-10">
-            <div className="label mb-2 border-b border-line pb-2">Versions</div>
-            <ol>
+          <div className="mt-8">
+            <div className="label mb-2">Versions</div>
+            <ol className="space-y-0.5">
               {runs.map((r, i) => {
                 const n = runs.length - i;
+                const selected = r.id === selectedRunId;
                 return (
                   <li key={r.id}>
                     <button
                       disabled={!r.has_video}
                       onClick={() => onSelectRun(r.id)}
                       className={clsx(
-                        "grid w-full grid-cols-[34px_1fr_auto] items-baseline gap-2 border-b border-line py-2 text-left transition-colors",
-                        r.id === selectedRunId ? "text-fg" : "text-muted hover:text-fg",
+                        "grid w-full grid-cols-[30px_1fr_auto] items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors",
+                        selected ? "bg-paper text-fg shadow-e1" : "text-muted enabled:hover:bg-hover enabled:hover:text-fg",
                         !r.has_video && "cursor-default",
                       )}
                     >
-                      <span className={clsx("font-mono text-[11px]", r.id === selectedRunId ? "text-accent" : "text-faint")}>v{n}</span>
+                      <span className={clsx("text-[12px] font-semibold", selected ? "text-accent" : "text-faint")}>v{n}</span>
                       <span className="truncate text-[13px]">{r.instruction || (r.mode === "render" ? "Re-rendered" : "First version")}</span>
-                      {r.has_video ? <span className="font-mono text-[10px] text-faint">{timeAgo(r.created_at)}</span> : <StatusPill status={r.status} />}
+                      {r.has_video ? <span className="text-[11.5px] text-faint">{timeAgo(r.created_at)}</span> : <StatusPill status={r.status} />}
                     </button>
                   </li>
                 );
@@ -236,20 +237,20 @@ export function AgentPanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-line p-4">
-        {error && <p className="mb-3 text-[13px] text-brick">{error}</p>}
+      <div className="shrink-0 border-t border-line bg-paper p-4">
+        {error && <ErrorNote className="mb-3">{error}</ErrorNote>}
         {active ? (
-          <Button className="w-full" onClick={stop}>
+          <Button className="w-full" size="lg" onClick={stop}>
             Stop the editor
           </Button>
         ) : !hasTimeline ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <textarea
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               rows={1}
               placeholder="Any direction for the editor? (optional)"
-              className="block max-h-32 min-h-9 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[14px] outline-none placeholder:text-faint focus:border-fg"
+              className="field block max-h-32 min-h-10 w-full resize-none px-3 py-2 text-[13.5px] leading-relaxed"
             />
             <Button
               variant="primary"
@@ -260,7 +261,7 @@ export function AgentPanel({
               onClick={() => start("agent", instruction)}
             >
               Make the video
-              <ArrowRight className="size-4" strokeWidth={1.5} />
+              <ArrowRight className="size-4" strokeWidth={1.75} />
             </Button>
           </div>
         ) : (
@@ -276,7 +277,7 @@ export function AgentPanel({
               }}
               rows={2}
               placeholder="Direct the next revision… “let the opening breathe, end on the wide shot”"
-              className="block max-h-40 min-h-14 w-full resize-none border border-line-strong bg-bg px-3 py-2.5 text-[14px] leading-relaxed outline-none placeholder:text-faint focus:border-fg/60"
+              className="field block max-h-40 min-h-16 w-full resize-none px-3 py-2.5 text-[13.5px] leading-relaxed"
             />
             <div className="mt-2.5 flex items-center justify-between">
               <Button size="sm" variant="ghost" onClick={() => start("render")} disabled={busy} title="Render the current cut again, e.g. after changing the style or format">
@@ -284,7 +285,7 @@ export function AgentPanel({
               </Button>
               <Button size="sm" variant="primary" onClick={() => start("agent", instruction)} disabled={busy || !instruction.trim()} aria-label="Send revision">
                 Revise
-                <ArrowRight className="size-3.5" strokeWidth={1.5} />
+                <ArrowRight className="size-3.5" strokeWidth={1.75} />
               </Button>
             </div>
           </div>
@@ -298,21 +299,21 @@ function Prelude({ hasBrief }: { hasBrief: boolean }) {
   const steps = [
     ["Researches the subject", "Checks facts, places and names on the web"],
     ["Finds the footage", "Searches licensed libraries and judges every shot"],
-    ["Writes and cuts", "A script, then shots, words, motion and score"],
-    ["Renders the piece", "A finished film, credited and ready to share"],
+    ["Writes and cuts", "A script, then shots, words, motion and music"],
+    ["Renders the video", "Finished, credited and ready to share"],
   ];
   return (
     <div>
-      <p className="text-[15px] leading-relaxed text-muted">
-        {hasBrief ? "When you're ready, the editor makes the whole piece, footage included." : "Write a brief and the editor makes the whole piece, footage included. No uploads needed."}
+      <p className="text-[14px] leading-relaxed text-muted">
+        {hasBrief ? "When you're ready, the editor makes the whole video, footage included." : "Write a brief and the editor makes the whole video, footage included. No uploads needed."}
       </p>
-      <ol className="mt-6 border-t border-line">
+      <ol className="relative mt-6 space-y-5 before:absolute before:top-3 before:bottom-3 before:left-[11.5px] before:w-px before:bg-line">
         {steps.map(([title, sub], i) => (
-          <li key={title} className="grid grid-cols-[34px_1fr] border-b border-line py-3">
-            <span className="font-mono text-[11px] text-faint">{i + 1}.</span>
-            <span>
+          <li key={title} className="relative flex gap-3">
+            <StepNumber n={i + 1} />
+            <span className="pt-0.5">
               <span className="block text-[13.5px] font-medium">{title}</span>
-              <span className="block text-[12.5px] text-faint">{sub}</span>
+              <span className="block text-[12.5px] leading-relaxed text-faint">{sub}</span>
             </span>
           </li>
         ))}

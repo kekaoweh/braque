@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { api, ProjectSummary, Style, User } from "@/lib/api";
 
 type AppState = {
@@ -9,8 +9,6 @@ type AppState = {
   projects: ProjectSummary[];
   refreshProjects: () => Promise<void>;
   patchProjectSummary: (id: string, patch: Partial<ProjectSummary>) => void;
-  /** Catalogue number for a work, in the order works were begun. */
-  plateOf: (id: string) => number;
   styles: Style[];
   refreshStyles: () => Promise<void>;
 };
@@ -36,12 +34,6 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
     [],
   );
 
-  const plates = useMemo(() => {
-    const ordered = [...projects].sort((a, b) => a.created_at.localeCompare(b.created_at));
-    return new Map(ordered.map((p, i) => [p.id, i + 1]));
-  }, [projects]);
-  const plateOf = useCallback((id: string) => plates.get(id) ?? plates.size + 1, [plates]);
-
   useEffect(() => {
     // api.request redirects to /login on 401.
     api.me().then(async (u) => {
@@ -52,7 +44,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
 
   if (!user) return <>{fallback}</>;
   return (
-    <Ctx.Provider value={{ user, setUser, projects, refreshProjects, patchProjectSummary, plateOf, styles, refreshStyles }}>
+    <Ctx.Provider value={{ user, setUser, projects, refreshProjects, patchProjectSummary, styles, refreshStyles }}>
       {children}
     </Ctx.Provider>
   );

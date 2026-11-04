@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { ChevronDown } from "lucide-react";
 import { ButtonHTMLAttributes, forwardRef, ReactNode, useEffect, useRef, useState } from "react";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -19,14 +20,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       disabled={disabled || loading}
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-[5px] font-medium whitespace-nowrap transition-[background,color,opacity,border-color,box-shadow,transform] duration-200 select-none active:translate-y-px",
-        "disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-fg",
-        size === "sm" && "h-7 px-2.5 text-[12.5px]",
+        "inline-flex items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap transition-[background,color,opacity,border-color,box-shadow,transform] duration-200 select-none active:translate-y-px",
+        "disabled:cursor-not-allowed disabled:opacity-40",
+        size === "sm" && "h-8 px-3 text-[13px]",
         size === "md" && "h-9 px-3.5 text-[13.5px]",
-        size === "lg" && "h-11 px-5 text-[14.5px] tracking-[0.01em]",
+        size === "lg" && "h-11 px-5 text-[14.5px]",
         variant === "primary" &&
-          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--fg)_88%,white)_0%,var(--fg)_100%)] text-bg shadow-e2 hover:shadow-e3 active:shadow-e1",
-        variant === "secondary" && "border border-line-strong bg-paper text-fg shadow-e1 hover:border-fg/30 hover:shadow-e2",
+          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--fg)_86%,white)_0%,var(--fg)_100%)] text-bg shadow-e2 hover:shadow-e3 active:shadow-e1",
+        variant === "secondary" && "border border-line-strong bg-paper text-fg shadow-e1 hover:border-fg/25 hover:shadow-e2",
         variant === "ghost" && "text-muted hover:bg-hover hover:text-fg",
         variant === "danger" && "text-brick hover:bg-brick-soft",
         className,
@@ -39,6 +40,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
+/** Square icon-only button with the same hover as ghost buttons. */
+export function IconButton({ className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      className={clsx("inline-flex size-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-hover hover:text-fg", className)}
+      {...rest}
+    />
+  );
+}
+
 /** Three ink dots, drawn in turn. */
 export function Spinner({ className }: { className?: string }) {
   return (
@@ -50,24 +61,25 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function Pill({
+/** A soft rounded badge. Every tag and status in the app is one of these. */
+export function Badge({
   children,
-  tone = "gray",
+  tone = "neutral",
   className,
 }: {
   children: ReactNode;
-  tone?: "gray" | "blue" | "green" | "red" | "accent";
+  tone?: "neutral" | "accent" | "sage" | "brick" | "dusk";
   className?: string;
 }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 font-mono text-[10.5px] font-medium tracking-[0.12em] whitespace-nowrap uppercase",
-        tone === "gray" && "text-faint",
-        tone === "blue" && "text-dusk",
-        tone === "green" && "text-sage",
-        tone === "red" && "text-brick",
-        tone === "accent" && "text-accent",
+        "inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-[11.5px] font-medium whitespace-nowrap",
+        tone === "neutral" && "bg-active text-muted",
+        tone === "accent" && "bg-accent-soft text-accent",
+        tone === "sage" && "bg-sage-soft text-sage",
+        tone === "brick" && "bg-brick-soft text-brick",
+        tone === "dusk" && "bg-dusk-soft text-dusk",
         className,
       )}
     >
@@ -76,17 +88,22 @@ export function Pill({
   );
 }
 
-/** Popover anchored to its trigger: a sheet of paper with a hairline edge. */
+/** Popover anchored to its trigger. */
 export function Menu({
   trigger,
   children,
   align = "left",
   width = "w-56",
+  up,
+  className,
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => ReactNode;
   children: (close: () => void) => ReactNode;
   align?: "left" | "right";
   width?: string;
+  /** Open above the trigger (for menus at the bottom of the screen). */
+  up?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -104,13 +121,14 @@ export function Menu({
     };
   }, [open]);
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={ref} className={clsx("relative inline-block", className)}>
       {trigger({ open, toggle: () => setOpen((o) => !o) })}
       {open && (
         <div
           className={clsx(
-            "fade-up absolute z-50 mt-1.5 rounded-[7px] border border-line bg-paper/95 p-1 shadow-e4 backdrop-blur-md",
+            "fade-up absolute z-50 rounded-[12px] border border-line bg-paper/95 p-1 shadow-e4 backdrop-blur-md",
             width,
+            up ? "bottom-full mb-1.5" : "mt-1.5",
             align === "right" ? "right-0" : "left-0",
           )}
         >
@@ -140,34 +158,155 @@ export function MenuItem({
     <button
       onClick={onClick}
       className={clsx(
-        "flex w-full items-center gap-2.5 rounded-[4px] px-2.5 py-1.5 text-left text-[13.5px] transition-colors hover:bg-hover",
-        active && "bg-hover",
-        danger ? "text-brick" : "text-fg",
+        "flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-left text-[13.5px] transition-colors hover:bg-hover",
+        active && "bg-hover font-medium",
+        danger ? "text-brick hover:bg-brick-soft" : "text-fg",
       )}
     >
-      {icon && <span className="flex w-4 shrink-0 justify-center text-faint">{icon}</span>}
+      {icon && <span className={clsx("flex w-4 shrink-0 justify-center", danger ? "text-brick" : "text-faint")}>{icon}</span>}
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {hint && <span className="shrink-0 font-mono text-[10.5px] tracking-wider text-faint">{hint}</span>}
+      {hint && <span className="shrink-0 text-[12px] text-faint">{hint}</span>}
     </button>
   );
 }
 
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-export const roman = (n: number) => ROMAN[n - 1] ?? String(n);
+export function MenuLabel({ children }: { children: ReactNode }) {
+  return <div className="label px-2.5 pt-1.5 pb-1">{children}</div>;
+}
 
-/** Catalogue-style section heading: "II — Preview" over a hairline. */
-export function SectionTitle({ n, children, action }: { n?: number; children: ReactNode; action?: ReactNode }) {
+/**
+ * A select-style trigger: the same bordered box as every text field, with a chevron.
+ * `label` sits above it, like any form field.
+ */
+export const SelectButton = forwardRef<HTMLButtonElement, {
+  label?: string;
+  open?: boolean;
+  onClick: () => void;
+  icon?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  "aria-label"?: string;
+}>(function SelectButton({ label, open, onClick, icon, children, className, ...rest }, ref) {
+  const button = (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onClick}
+      data-open={open}
+      className={clsx("field flex h-9 w-full items-center gap-2 pr-2.5 pl-3 text-left text-[13.5px]", className)}
+      {...rest}
+    >
+      {icon && <span className="flex shrink-0 text-faint">{icon}</span>}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <ChevronDown className={clsx("size-3.5 shrink-0 text-faint transition-transform", open && "rotate-180")} strokeWidth={1.75} />
+    </button>
+  );
+  if (!label) return button;
   return (
-    <div className="mb-4 flex items-baseline gap-3 border-b border-line pb-2">
-      {n !== undefined && <span className="font-mono text-[11px] leading-none text-faint">{roman(n)}.</span>}
-      <h2 className="label !text-muted">{children}</h2>
-      {action && <div className="ml-auto">{action}</div>}
+    <div className="flex flex-col gap-1.5">
+      <span className="label">{label}</span>
+      {button}
+    </div>
+  );
+});
+
+/** Pill options in a recessed track. */
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: T;
+  options: [T, ReactNode][];
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  return (
+    <div className={clsx("track", className)} role="group">
+      {options.map(([v, label]) => (
+        <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
 
-/** A catalogue number like "No. 07". */
-export const plate = (n: number) => `No. ${String(n).padStart(2, "0")}`;
+/** Page heading used by every top-level page: title, one line of context, actions on the right. */
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+      <div className="max-w-[640px]">
+        {eyebrow && <div className="label mb-2.5">{eyebrow}</div>}
+        <h1 className="text-[32px] leading-[1.08] font-semibold tracking-[-0.035em] sm:text-[40px]">{title}</h1>
+        {description && <p className="mt-3 text-[15px] leading-relaxed text-muted">{description}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </header>
+  );
+}
+
+/** Heading for a block of content inside a page: title, optional count/description, actions. */
+export function SectionHeader({
+  title,
+  count,
+  description,
+  action,
+  className,
+}: {
+  title: ReactNode;
+  count?: number;
+  description?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={clsx("mb-4 flex items-start justify-between gap-4", className)}>
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-2 text-[16px] leading-6 font-semibold tracking-[-0.015em]">
+          {title}
+          {count !== undefined && count > 0 && <span className="text-[13px] font-medium text-faint">{count}</span>}
+        </h2>
+        {description && <p className="mt-0.5 text-[13.5px] leading-relaxed text-muted">{description}</p>}
+      </div>
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+    </div>
+  );
+}
+
+/** Numbered step marker, used wherever the app explains a sequence. */
+export function StepNumber({ n, done }: { n: number; done?: boolean }) {
+  return (
+    <span
+      className={clsx(
+        "flex size-6 shrink-0 items-center justify-center rounded-full text-[11.5px] font-semibold",
+        done ? "bg-sage-soft text-sage" : "border border-line-strong bg-paper text-muted shadow-e1",
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+/** Inline error, styled the same everywhere. */
+export function ErrorNote({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={clsx("rounded-control border border-brick/20 bg-brick-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-brick", className)}>
+      {children}
+    </p>
+  );
+}
 
 export function useDebouncedCallback<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
