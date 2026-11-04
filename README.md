@@ -92,6 +92,28 @@ match. *Music* becomes the soundtrack.
 settings (caption position, color and box, transitions, brightness, contrast, saturation). There are
 five built-in styles, and users can create their own on the Styles page.
 
+## Finding your way around
+
+- **⌘K / Ctrl+K** opens the quick switcher anywhere: jump to any video, Studio or Styles, start a new
+  video, or sign out.
+- **New video** sits at the top of the sidebar, under search; your videos are listed below with
+  thumbnails and a pulsing dot while the editor is working.
+- In the editor, the **section bar** (Brief, Preview, Timeline, Footage, Credits) follows your scroll
+  and jumps to any section.
+
+## Testing
+
+An end-to-end walkthrough drives the real app in headless Chrome: sign-in states, creating a video,
+the quick switcher and section bar, autosave, uploads and roles, starting the editor, styles, removing
+a video and signing out. It uses a throwaway account whose Claude token is fake, so the editor run is
+expected to end with the friendly "Claude rejected your token" message.
+
+```bash
+cookie=$(cd backend && uv run python scripts/dev_session.py create)
+(cd frontend && PICASSO_TEST_COOKIE=$cookie npm run test:e2e)   # set FFMPEG if ffmpeg isn't on PATH
+(cd backend && uv run python scripts/dev_session.py cleanup)
+```
+
 ## Configuration (env vars)
 
 | Var | Default | |
