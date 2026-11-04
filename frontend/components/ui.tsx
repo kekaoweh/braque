@@ -19,13 +19,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       disabled={disabled || loading}
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-[3px] font-medium whitespace-nowrap transition-[background,color,opacity,border-color] duration-200 select-none",
+        "inline-flex items-center justify-center gap-2 rounded-[5px] font-medium whitespace-nowrap transition-[background,color,opacity,border-color,box-shadow,transform] duration-200 select-none active:translate-y-px",
         "disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-fg",
         size === "sm" && "h-7 px-2.5 text-[12.5px]",
         size === "md" && "h-9 px-3.5 text-[13.5px]",
         size === "lg" && "h-11 px-5 text-[14.5px] tracking-[0.01em]",
-        variant === "primary" && "bg-fg text-bg hover:bg-fg/85",
-        variant === "secondary" && "border border-line-strong bg-paper text-fg hover:border-fg/40",
+        variant === "primary" &&
+          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--fg)_88%,white)_0%,var(--fg)_100%)] text-bg shadow-e2 hover:shadow-e3 active:shadow-e1",
+        variant === "secondary" && "border border-line-strong bg-paper text-fg shadow-e1 hover:border-fg/30 hover:shadow-e2",
         variant === "ghost" && "text-muted hover:bg-hover hover:text-fg",
         variant === "danger" && "text-brick hover:bg-brick-soft",
         className,
@@ -108,7 +109,7 @@ export function Menu({
       {open && (
         <div
           className={clsx(
-            "fade-up absolute z-50 mt-1.5 rounded-[3px] bg-paper p-1 shadow-pop",
+            "fade-up absolute z-50 mt-1.5 rounded-[7px] border border-line bg-paper/95 p-1 shadow-e4 backdrop-blur-md",
             width,
             align === "right" ? "right-0" : "left-0",
           )}
@@ -139,7 +140,7 @@ export function MenuItem({
     <button
       onClick={onClick}
       className={clsx(
-        "flex w-full items-center gap-2.5 rounded-[2px] px-2.5 py-1.5 text-left text-[13.5px] transition-colors hover:bg-hover",
+        "flex w-full items-center gap-2.5 rounded-[4px] px-2.5 py-1.5 text-left text-[13.5px] transition-colors hover:bg-hover",
         active && "bg-hover",
         danger ? "text-brick" : "text-fg",
       )}

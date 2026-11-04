@@ -12,7 +12,7 @@ import { AssetGrid } from "@/components/asset-grid";
 import { AspectPicker, LengthPicker, StylePicker } from "@/components/pickers";
 import { StatusPill } from "@/components/status";
 import { TimelineStrip } from "@/components/timeline-strip";
-import { Button, Menu, MenuItem, plate, roman, SectionTitle, Spinner, useMediaQuery } from "@/components/ui";
+import { Button, Menu, MenuItem, plate, SectionTitle, Spinner, useMediaQuery } from "@/components/ui";
 import { api, Aspect, FootageSource, formatDuration, media, Project, Run, timeAgo } from "@/lib/api";
 
 export default function ProjectPage() {
@@ -26,6 +26,7 @@ export default function ProjectPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [tab, setTab] = useState<"timeline" | "script">("timeline");
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const scroller = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -109,6 +110,13 @@ export default function ProjectPage() {
   const selectedIndex = selectedRun ? runs.length - runs.indexOf(selectedRun) : 0;
   const portrait = project.aspect === "9:16" || project.aspect === "4:5";
   const credits = creditsFor(project);
+  const sections = [
+    { id: "brief", label: "Brief" },
+    ...(selectedRun ? [{ id: "preview", label: "Preview" }] : []),
+    ...(project.timeline || project.script ? [{ id: "timeline", label: "Timeline" }] : []),
+    { id: "footage", label: "Footage", count: project.assets.length },
+    ...(credits.length ? [{ id: "credits", label: "Credits", count: credits.length }] : []),
+  ];
   const begun = new Date(project.created_at).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
   const panel = (
     <AgentPanel
@@ -166,8 +174,9 @@ export default function ProjectPage() {
         </div>
 
         {/* The entry */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[780px] px-6 pt-12 pb-32 sm:px-12">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
+          <SectionBar sections={sections} scroller={scroller} />
+          <div className="mx-auto max-w-[780px] px-6 pt-10 pb-32 sm:px-12">
             <div className="label">{plate(plateOf(project.id))} · Begun {begun}</div>
             <textarea
               value={project.name}
@@ -189,8 +198,8 @@ export default function ProjectPage() {
               </div>
             </div>
 
-            <section className="mt-12">
-              <SectionTitle n={1}>The brief</SectionTitle>
+            <section id="brief" className="mt-12 scroll-mt-16">
+              <SectionTitle n={1}>Brief</SectionTitle>
               <textarea
                 value={project.prompt}
                 onChange={(e) => change({ prompt: e.target.value })}
@@ -200,10 +209,10 @@ export default function ProjectPage() {
             </section>
 
             {selectedRun && (
-              <section className="mt-12">
-                <SectionTitle n={2}>The piece</SectionTitle>
+              <section id="preview" className="mt-12 scroll-mt-16">
+                <SectionTitle n={2}>Preview</SectionTitle>
                 <figure className={clsx(portrait && "mx-auto max-w-[380px]")}>
-                  <div className="border border-line bg-paper p-3 shadow-card">
+                  <div className="rounded-[10px] border border-line bg-paper p-3 shadow-e4">
                     <video
                       key={selectedRun.id}
                       src={`${media.video(selectedRun.id)}#t=0.6`}
@@ -214,7 +223,7 @@ export default function ProjectPage() {
                     />
                   </div>
                   <figcaption className="mt-3 flex items-baseline justify-between gap-4">
-                    <span className="text-[14.5px] font-medium">{project.name || "Untitled"}, state {roman(selectedIndex)}.</span>
+                    <span className="text-[14.5px] font-medium">Version {selectedIndex}</span>
                     <span className="label">{formatDuration(selectedRun.duration)} · {project.aspect} · {timeAgo(selectedRun.created_at)}</span>
                   </figcaption>
                 </figure>
@@ -222,7 +231,7 @@ export default function ProjectPage() {
             )}
 
             {(project.timeline || project.script) && (
-              <section className="mt-12">
+              <section id="timeline" className="mt-12 scroll-mt-16">
                 <SectionTitle
                   n={selectedRun ? 3 : 2}
                   action={
@@ -236,13 +245,13 @@ export default function ProjectPage() {
                             tab === t ? "text-fg underline decoration-accent decoration-1 underline-offset-[6px]" : "text-faint hover:text-muted",
                           )}
                         >
-                          {t === "timeline" ? "Cut" : "Script"}
+                          {t === "timeline" ? "Timeline" : "Script"}
                         </button>
                       ))}
                     </div>
                   }
                 >
-                  The cut
+                  Timeline
                 </SectionTitle>
                 {tab === "timeline" ? (
                   project.timeline ? (
@@ -260,7 +269,7 @@ export default function ProjectPage() {
               </section>
             )}
 
-            <section className="mt-12">
+            <section id="footage" className="mt-12 scroll-mt-16">
               <SectionTitle n={(selectedRun ? 3 : 2) + (project.timeline || project.script ? 1 : 0)}>Footage</SectionTitle>
               <p className="-mt-1 mb-2 text-[13.5px] leading-relaxed text-muted">
                 The editor finds footage on its own in licensed libraries, so everything it uses is cleared for
@@ -272,7 +281,7 @@ export default function ProjectPage() {
             </section>
 
             {credits.length > 0 && (
-              <section className="mt-12">
+              <section id="credits" className="mt-12 scroll-mt-16">
                 <SectionTitle n={(selectedRun ? 4 : 3) + (project.timeline || project.script ? 1 : 0)} action={<CopyCredits credits={credits} />}>
                   Credits
                 </SectionTitle>
@@ -353,5 +362,61 @@ function CopyCredits({ credits }: { credits: Project["assets"] }) {
     <button onClick={copy} className="font-mono text-[10.5px] tracking-[0.14em] text-faint uppercase hover:text-fg">
       {copied ? "Copied" : "Copy credits"}
     </button>
+  );
+}
+
+type SectionLink = { id: string; label: string; count?: number };
+
+/** Sticky jump bar for the editor's sections; the one in view is highlighted as you scroll. */
+function SectionBar({ sections, scroller }: { sections: SectionLink[]; scroller: React.RefObject<HTMLDivElement | null> }) {
+  const [active, setActive] = useState(sections[0]?.id);
+  const key = sections.map((x) => x.id).join(",");
+
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const onScroll = () => {
+      const top = root.getBoundingClientRect().top + 90;
+      let current = sections[0]?.id;
+      for (const sec of sections) {
+        const el = root.querySelector<HTMLElement>(`#${sec.id}`);
+        if (el && el.getBoundingClientRect().top <= top) current = sec.id;
+      }
+      if (root.scrollTop + root.clientHeight >= root.scrollHeight - 4) current = sections[sections.length - 1]?.id;
+      setActive(current);
+    };
+    onScroll();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [key, scroller]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const bar = useRef<HTMLDivElement>(null);
+  const jump = (id: string) => {
+    const root = scroller.current;
+    const el = root?.querySelector<HTMLElement>(`#${id}`);
+    if (!root || !el) return;
+    // Position relative to the scroller (not offsetParent), leaving room for this sticky bar.
+    const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
+    root.scrollTo({ top: top - (bar.current?.offsetHeight ?? 44) - 20, behavior: "smooth" });
+  };
+
+  return (
+    <div ref={bar} className="glass sticky top-0 z-20 border-b border-line">
+      <nav className="mx-auto flex max-w-[780px] gap-1 overflow-x-auto px-4 py-1.5 sm:px-10" aria-label="Sections">
+        {sections.map((sec) => (
+          <button
+            key={sec.id}
+            onClick={() => jump(sec.id)}
+            className={clsx(
+              "flex shrink-0 items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] transition-all",
+              active === sec.id ? "bg-paper font-medium text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
+            )}
+          >
+            {sec.label}
+            {sec.count ? <span className="font-mono text-[10px] text-faint">{sec.count}</span> : null}
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 }

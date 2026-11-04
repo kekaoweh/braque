@@ -58,9 +58,9 @@ export default function StudioPage() {
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_280px]">
           {/* Commission sheet */}
-          <div className="self-start border border-line-strong bg-paper shadow-card transition-shadow focus-within:shadow-pop">
+          <div className="self-start overflow-hidden rounded-[10px] border border-line bg-paper shadow-e3 transition-shadow focus-within:shadow-e4">
             <div className="flex items-baseline justify-between border-b border-line px-5 py-2.5">
-              <span className="label">New commission</span>
+              <span className="label">New video</span>
               <span className="label">{plate(projects.length + 1)}</span>
             </div>
             <textarea
@@ -77,8 +77,8 @@ export default function StudioPage() {
               <LengthPicker label="Running time" value={seconds} onChange={setSeconds} />
               <AspectPicker label="Format" value={aspect} onChange={setAspect} />
               <StylePicker label="Style" styles={styles} value={styleId} onChange={setStyleId} />
-              <Button variant="primary" className="ml-auto" onClick={begin} loading={busy} title="Begin (⌘↵)" aria-label="Begin the work">
-                Begin
+              <Button variant="primary" className="ml-auto" onClick={begin} loading={busy} title="Create (⌘↵)" aria-label="Create video">
+                Create video
                 <ArrowRight className="size-4" strokeWidth={1.5} />
               </Button>
             </div>
@@ -86,7 +86,7 @@ export default function StudioPage() {
 
           {/* Sketchbook */}
           <aside>
-            <div className="label mb-3 border-b border-line pb-2">From the sketchbook</div>
+            <div className="label mb-3 border-b border-line pb-2">Try an idea</div>
             <ol className="space-y-3">
               {SKETCHES.map((s, i) => (
                 <li key={s} className="grid grid-cols-[34px_1fr]">
@@ -106,13 +106,13 @@ export default function StudioPage() {
         {/* The collection */}
         <section className="mt-24">
           <div className="mb-8 flex items-baseline justify-between border-b border-line pb-2.5">
-            <h2 className="text-[24px] leading-none font-semibold tracking-[-0.025em]">The collection</h2>
-            <span className="label">{projects.length} {projects.length === 1 ? "work" : "works"}</span>
+            <h2 className="text-[24px] leading-none font-semibold tracking-[-0.025em]">Your videos</h2>
+            <span className="label">{projects.length} {projects.length === 1 ? "video" : "videos"}</span>
           </div>
           {projects.length === 0 ? (
             <div className="grid place-items-center py-16 text-center">
-              <p className="text-[18px] font-medium tracking-[-0.01em] text-muted">The walls are bare.</p>
-              <p className="mt-1 text-[13px] text-faint">Begin a commission above and it will hang here.</p>
+              <p className="text-[18px] font-medium tracking-[-0.01em] text-muted">No videos yet.</p>
+              <p className="mt-1 text-[13px] text-faint">Describe one above and it will appear here.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
@@ -138,7 +138,7 @@ export default function StudioPage() {
                       {p.name || "Untitled"}
                     </div>
                     <div className="mt-1 text-[12.5px] text-faint">
-                      Moving picture, {formatLength(p.target_seconds)} · {p.aspect} · {timeAgo(p.updated_at)}
+                      {formatLength(p.target_seconds)} · {p.aspect} · edited {timeAgo(p.updated_at)}
                     </div>
                   </div>
                 </Link>

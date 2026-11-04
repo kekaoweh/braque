@@ -1,14 +1,16 @@
 "use client";
 
 import clsx from "clsx";
-import { LogOut, PanelLeftClose, Pencil, Plus, ShieldOff } from "lucide-react";
+import { ChevronsUpDown, Home, LogOut, Palette, PanelLeftClose, Pencil, Plus, Search, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/components/app-context";
+import { openPalette } from "@/components/command-palette";
 import { Wordmark } from "@/components/logo";
-import { Menu, MenuItem, plate } from "@/components/ui";
-import { ACTIVE_STATUSES, api } from "@/lib/api";
+import { STATUS_LABELS } from "@/components/status";
+import { Button, Menu, MenuItem, plate } from "@/components/ui";
+import { ACTIVE_STATUSES, api, media } from "@/lib/api";
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { user, setUser, projects, refreshProjects, plateOf } = useApp();
@@ -16,7 +18,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
 
-  const newWork = async () => {
+  const newVideo = async () => {
     setCreating(true);
     try {
       const p = await api.createProject({ name: "Untitled" });
@@ -39,38 +41,54 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   const forget = async () => {
-    if (!window.confirm("Sign out everywhere and delete your stored Claude token? Your works stay.")) return;
+    if (!window.confirm("Sign out everywhere and delete your stored Claude token? Your videos stay.")) return;
     await api.forget();
     window.location.href = "/login";
   };
 
   return (
-    <aside className="flex h-full w-[248px] flex-col bg-soft">
-      <div className="flex items-center justify-between px-5 pt-5 pb-6">
-        <Link href="/" onClick={onClose} aria-label="Picasso home">
+    <aside className="flex h-full w-[256px] flex-col">
+      <div className="flex items-center justify-between px-4 pt-4 pb-4">
+        <Link href="/" onClick={onClose} aria-label="Picasso home" className="rounded-[6px] px-1 py-0.5">
           <Wordmark />
         </Link>
         {onClose && (
-          <button onClick={onClose} className="rounded-[2px] p-1.5 text-faint hover:bg-hover hover:text-fg" aria-label="Close sidebar">
+          <button onClick={onClose} className="rounded-[6px] p-1.5 text-faint hover:bg-hover hover:text-fg" aria-label="Close sidebar">
             <PanelLeftClose className="size-4" strokeWidth={1.5} />
           </button>
         )}
       </div>
 
-      <nav className="space-y-0.5 px-3">
-        <NavLink href="/" active={pathname === "/"} onClick={onClose}>Studio</NavLink>
-        <NavLink href="/styles" active={pathname === "/styles"} onClick={onClose}>Styles</NavLink>
+      <div className="space-y-2 px-3">
+        <button
+          onClick={() => { onClose?.(); openPalette(); }}
+          className="flex h-9 w-full items-center gap-2.5 rounded-[7px] border border-line bg-paper/70 px-3 text-left text-[13px] text-faint shadow-e1 transition-colors hover:border-line-strong hover:text-muted"
+        >
+          <Search className="size-3.5" strokeWidth={1.5} />
+          <span className="flex-1">Search</span>
+          <kbd className="rounded-[4px] border border-line bg-bg px-1.5 font-mono text-[10px]">⌘K</kbd>
+        </button>
+        <Button variant="primary" className="w-full" onClick={newVideo} loading={creating} icon={<Plus className="size-4" strokeWidth={1.75} />}>
+          New video
+        </Button>
+      </div>
+
+      <nav className="mt-5 space-y-0.5 px-3">
+        <NavLink href="/" active={pathname === "/"} icon={<Home className="size-4" strokeWidth={1.5} />} onClick={onClose}>
+          Studio
+        </NavLink>
+        <NavLink href="/styles" active={pathname === "/styles"} icon={<Palette className="size-4" strokeWidth={1.5} />} onClick={onClose}>
+          Styles
+        </NavLink>
       </nav>
 
-      <div className="mt-8 flex items-center justify-between px-5 pb-2">
-        <span className="label">The collection</span>
-        <button onClick={newWork} disabled={creating} className="rounded-[2px] p-0.5 text-faint hover:text-fg" aria-label="New work">
-          <Plus className="size-3.5" strokeWidth={1.5} />
-        </button>
+      <div className="mt-6 flex items-center justify-between px-5 pb-2">
+        <span className="label">Your videos</span>
+        <span className="font-mono text-[10px] text-faint">{projects.length}</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
         {projects.length === 0 && (
-          <p className="px-2 py-1 text-[13px] text-faint">Nothing on the walls yet.</p>
+          <p className="px-2 py-1 text-[13px] leading-relaxed text-faint">No videos yet. Start one with New video.</p>
         )}
         {projects.map((p) => {
           const active = pathname === `/projects/${p.id}`;
@@ -80,42 +98,44 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               key={p.id}
               href={`/projects/${p.id}`}
               onClick={onClose}
+              title={`${plate(plateOf(p.id))} · ${p.name || "Untitled"}`}
               className={clsx(
-                "group relative flex items-baseline gap-2.5 rounded-[2px] py-1.5 pr-2 pl-3 transition-colors",
-                active ? "bg-active text-fg" : "text-muted hover:bg-hover hover:text-fg",
+                "group flex items-center gap-2.5 rounded-[7px] p-1.5 pr-2 transition-all",
+                active ? "bg-paper text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
               )}
             >
-              {active && <span className="absolute top-1.5 bottom-1.5 left-0 w-[2px] bg-accent" />}
-              <span className="w-11 shrink-0 font-mono text-[10px] tracking-wider whitespace-nowrap text-faint">{plate(plateOf(p.id))}</span>
+              <span className="relative h-[26px] w-[36px] shrink-0 overflow-hidden rounded-[4px] border border-line bg-soft">
+                {p.cover_asset_id ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={media.thumb(p.cover_asset_id)} alt="" className="gallery-img size-full object-cover" loading="lazy" />
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center font-mono text-[8.5px] text-faint">
+                    {String(plateOf(p.id)).padStart(2, "0")}
+                  </span>
+                )}
+              </span>
               <span className="min-w-0 flex-1 truncate text-[13.5px]">{p.name || "Untitled"}</span>
-              {working && <span className="ink-pulse size-[5px] shrink-0 self-center rounded-full bg-accent" title="In the studio" />}
+              {working && (
+                <span className="ink-pulse size-[6px] shrink-0 rounded-full bg-accent" title={STATUS_LABELS[p.latest_status!]} />
+              )}
             </Link>
           );
         })}
       </div>
 
-      <div className="space-y-3 border-t border-line px-3 pt-3 pb-4">
-        <button
-          onClick={newWork}
-          disabled={creating}
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-[3px] border border-line-strong bg-paper text-[13px] font-medium text-fg transition-colors hover:border-fg/40"
-        >
-          <Plus className="size-3.5" strokeWidth={1.5} />
-          Begin a new work
-        </button>
+      <div className="border-t border-line px-3 pt-2 pb-3">
         <Menu
           width="w-60"
           trigger={({ toggle }) => (
-            <button onClick={toggle} className="flex w-full items-center gap-2.5 rounded-[2px] px-2 py-1.5 text-left hover:bg-hover">
-              <span className="flex size-7 shrink-0 items-center justify-center border border-line-strong text-[13px] font-semibold text-fg">
+            <button onClick={toggle} className="flex w-full items-center gap-2.5 rounded-[7px] px-2 py-1.5 text-left hover:bg-hover">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[linear-gradient(135deg,var(--accent),color-mix(in_srgb,var(--accent)_60%,var(--fg)))] text-[12px] font-semibold text-white shadow-e1">
                 {user.name.slice(0, 1).toUpperCase()}
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium">{user.name}</span>
-                <span className="block font-mono text-[10px] tracking-wider text-faint">
-                  {user.token_kind === "oauth" ? "CLAUDE ACCOUNT" : "API KEY"}
-                </span>
+                <span className="block text-[11px] text-faint">{user.token_kind === "oauth" ? "Claude account" : "API key"}</span>
               </span>
+              <ChevronsUpDown className="size-3.5 text-faint" strokeWidth={1.5} />
             </button>
           )}
         >
@@ -143,17 +163,29 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function NavLink({ href, active, children, onClick }: { href: string; active: boolean; children: React.ReactNode; onClick?: () => void }) {
+function NavLink({
+  href,
+  active,
+  icon,
+  children,
+  onClick,
+}: {
+  href: string;
+  active: boolean;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
   return (
     <Link
       href={href}
       onClick={onClick}
       className={clsx(
-        "relative flex items-center rounded-[2px] py-1.5 pl-3 text-[14px] font-medium transition-colors",
-        active ? "text-fg" : "text-muted hover:text-fg",
+        "flex items-center gap-2.5 rounded-[7px] px-2.5 py-1.5 text-[14px] font-medium transition-all",
+        active ? "bg-paper text-fg shadow-e1" : "text-muted hover:bg-hover hover:text-fg",
       )}
     >
-      {active && <span className="absolute top-2 bottom-2 left-0 w-[2px] bg-accent" />}
+      <span className={clsx("flex w-4 justify-center", active ? "text-accent" : "text-faint")}>{icon}</span>
       {children}
     </Link>
   );

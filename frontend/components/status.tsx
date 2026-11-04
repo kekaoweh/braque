@@ -2,12 +2,12 @@ import clsx from "clsx";
 import { RunStatus } from "@/lib/api";
 
 export const STATUS_LABELS: Record<RunStatus, string> = {
-  queued: "Preparing",
-  planning: "In the studio",
+  queued: "Starting",
+  planning: "Making",
   rendering: "Rendering",
-  done: "Finished",
-  error: "Interrupted",
-  cancelled: "Set aside",
+  done: "Ready",
+  error: "Failed",
+  cancelled: "Stopped",
 };
 
 /** A small inked dot and a label, like a gallery's "on loan" tag. */

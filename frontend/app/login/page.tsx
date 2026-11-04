@@ -50,7 +50,13 @@ export default function LoginPage() {
       <section className="relative hidden flex-col justify-between border-r border-line bg-soft px-14 py-12 lg:flex">
         <Wordmark />
         <figure className="mx-auto w-full max-w-[440px]">
-          <StudyPlate className="w-full" />
+          <div className="relative">
+            <div className="absolute -inset-x-3 inset-y-2 rotate-[3.5deg] rounded-[8px] border border-line bg-sheet shadow-e2" aria-hidden />
+            <div className="absolute -inset-x-1 -inset-y-1 -rotate-[2deg] rounded-[8px] border border-line bg-paper shadow-e2" aria-hidden />
+            <div className="relative rounded-[8px] bg-paper p-2 shadow-e4">
+              <StudyPlate className="w-full" />
+            </div>
+          </div>
           <figcaption className="mt-5 flex items-baseline justify-between gap-6 border-t border-line pt-3">
             <span className="label">Plate I</span>
             <span className="text-right">

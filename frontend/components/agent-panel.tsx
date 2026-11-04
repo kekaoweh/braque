@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { StatusPill } from "@/components/status";
-import { Button, roman, Spinner } from "@/components/ui";
+import { Button, Spinner } from "@/components/ui";
 import { ACTIVE_STATUSES, api, Asset, formatDuration, media, Run, RunEvent, timeAgo } from "@/lib/api";
 
 /** Live event stream for one run; reconnects from the last seen event. */
@@ -141,7 +141,7 @@ export function AgentPanel({
   return (
     <div className="flex h-full flex-col bg-paper">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-5">
-        <span className="label !text-muted">Studio log</span>
+        <span className="label !text-muted">Activity</span>
         {status && <StatusPill status={status} />}
       </div>
 
@@ -209,7 +209,7 @@ export function AgentPanel({
 
         {runs.length > 1 && (
           <div className="mt-10">
-            <div className="label mb-2 border-b border-line pb-2">Earlier states</div>
+            <div className="label mb-2 border-b border-line pb-2">Versions</div>
             <ol>
               {runs.map((r, i) => {
                 const n = runs.length - i;
@@ -224,8 +224,8 @@ export function AgentPanel({
                         !r.has_video && "cursor-default",
                       )}
                     >
-                      <span className={clsx("font-mono text-[11px]", r.id === selectedRunId ? "text-accent" : "text-faint")}>{roman(n)}.</span>
-                      <span className="truncate text-[13px]">{r.instruction || (r.mode === "render" ? "Re-rendered" : "First cut")}</span>
+                      <span className={clsx("font-mono text-[11px]", r.id === selectedRunId ? "text-accent" : "text-faint")}>v{n}</span>
+                      <span className="truncate text-[13px]">{r.instruction || (r.mode === "render" ? "Re-rendered" : "First version")}</span>
                       {r.has_video ? <span className="font-mono text-[10px] text-faint">{timeAgo(r.created_at)}</span> : <StatusPill status={r.status} />}
                     </button>
                   </li>
@@ -309,7 +309,7 @@ function Prelude({ hasBrief }: { hasBrief: boolean }) {
       <ol className="mt-6 border-t border-line">
         {steps.map(([title, sub], i) => (
           <li key={title} className="grid grid-cols-[34px_1fr] border-b border-line py-3">
-            <span className="font-mono text-[11px] text-faint">{roman(i + 1)}.</span>
+            <span className="font-mono text-[11px] text-faint">{i + 1}.</span>
             <span>
               <span className="block text-[13.5px] font-medium">{title}</span>
               <span className="block text-[12.5px] text-faint">{sub}</span>

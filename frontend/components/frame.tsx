@@ -1,11 +1,52 @@
-import clsx from "clsx";
-import { ReactNode } from "react";
+"use client";
 
-/** A matted frame on the wall: hairline edge, paper mat, the work inset. */
+import clsx from "clsx";
+import { PointerEvent, ReactNode, useRef } from "react";
+
+const MAX_TILT = 5; // degrees
+
+/**
+ * A matted frame on the wall: hairline edge, paper mat, the work inset. It tilts gently toward
+ * the cursor with a soft sheen, like a print catching gallery light (mouse only; off for
+ * reduced motion via CSS).
+ */
 export function Frame({ children, className, ratio = "aspect-[4/3]" }: { children: ReactNode; className?: string; ratio?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse" || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    const y = (e.clientY - r.top) / r.height;
+    const el = ref.current;
+    el.classList.add("is-tilting");
+    el.style.setProperty("--ry", `${(x - 0.5) * 2 * MAX_TILT}deg`);
+    el.style.setProperty("--rx", `${(0.5 - y) * 2 * MAX_TILT}deg`);
+    el.style.setProperty("--mx", `${x * 100}%`);
+    el.style.setProperty("--my", `${y * 100}%`);
+  };
+  const onLeave = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.classList.remove("is-tilting");
+    el.style.setProperty("--rx", "0deg");
+    el.style.setProperty("--ry", "0deg");
+  };
+
   return (
-    <div className={clsx("border border-line bg-paper p-2.5 shadow-card transition-shadow duration-500 group-hover:shadow-pop", className)}>
-      <div className={clsx("relative overflow-hidden bg-soft", ratio)}>{children}</div>
+    <div
+      ref={ref}
+      onPointerMove={onMove}
+      onPointerLeave={onLeave}
+      className={clsx(
+        "tilt relative rounded-[6px] border border-line bg-paper p-2.5 shadow-e2 group-hover:shadow-e4",
+        className,
+      )}
+    >
+      <div className={clsx("relative overflow-hidden rounded-[3px] bg-soft shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]", ratio)}>
+        {children}
+      </div>
+      <div className="tilt-sheen rounded-[6px]" />
     </div>
   );
 }
