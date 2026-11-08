@@ -15,6 +15,11 @@ set -euo pipefail
 # gcloud from PATH, or the per-user install in ~/google-cloud-sdk.
 command -v gcloud >/dev/null || export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 command -v gcloud >/dev/null || { echo "Install the Google Cloud CLI: https://cloud.google.com/sdk/docs/install"; exit 1; }
+# On a Mac without Xcode tools, /usr/bin/python3 is a stub; gcloud can use uv's Python instead.
+if [ -z "${CLOUDSDK_PYTHON:-}" ] && command -v uv >/dev/null; then
+  CLOUDSDK_PYTHON=$(uv python find 3.12 2>/dev/null || true)
+  [ -n "$CLOUDSDK_PYTHON" ] && export CLOUDSDK_PYTHON || unset CLOUDSDK_PYTHON
+fi
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$HERE")
