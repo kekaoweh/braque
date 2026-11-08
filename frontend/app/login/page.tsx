@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Copy, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { StudyPlate } from "@/components/artwork";
@@ -16,6 +16,9 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
   const [access, setAccess] = useState({ invite_required: false, claude_account_restricted: false });
+  // "key": an Anthropic API key (anyone). "claude": a Claude-account token from `claude setup-token`
+  // (the owner, when the server restricts it).
+  const [mode, setMode] = useState<"key" | "claude">("claude");
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,7 +26,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     api.me().then(() => router.replace("/")).catch(() => {});
-    api.access().then(setAccess).catch(() => {});
+    api.access().then((a) => {
+      setAccess(a);
+      if (a.claude_account_restricted) setMode("key");
+    }).catch(() => {});
   }, [router]);
 
   const copy = async () => {
@@ -46,6 +52,8 @@ export default function LoginPage() {
   };
 
   const looksValid = /^sk-ant-(oat|api)/.test(token.trim());
+  // Catch a Claude-account token pasted on a server that reserves those for its owner.
+  const wrongKind = mode === "key" && access.claude_account_restricted && token.trim().startsWith("sk-ant-oat");
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
@@ -89,32 +97,59 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={submit} className="card mt-9 p-6 shadow-e3">
-            <p className="mb-5 text-[15px] font-semibold tracking-[-0.01em]">Sign in with your Claude account</p>
+            <p className="text-[15px] font-semibold tracking-[-0.01em]">
+              {mode === "key" ? "Sign in with an Anthropic API key" : "Sign in with your Claude account"}
+            </p>
+            <p className="mt-1 mb-5 text-[13px] leading-relaxed text-faint">
+              {mode === "key"
+                ? "Braque's editor runs on your own key, billed by Anthropic for what you use."
+                : "Braque's editor runs on your own Claude plan."}
+            </p>
             <ol className="space-y-6">
-              <Step n={1} title="In your terminal, run">
-                <div className="field mt-2 flex items-center gap-3 bg-bg py-1.5 pr-1.5 pl-3.5 shadow-none">
-                  <code className="flex-1 font-mono text-[13px] select-all">{COMMAND}</code>
-                  <button
-                    type="button"
-                    onClick={copy}
-                    className="rounded-[7px] p-1.5 text-faint transition-colors hover:bg-hover hover:text-fg"
-                    aria-label="Copy command"
+              {mode === "key" ? (
+                <Step n={1} title="Get an API key">
+                  <a
+                    href="https://console.anthropic.com/settings/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="field mt-2 flex items-center gap-2.5 bg-bg px-3.5 py-2.5 text-[13.5px] shadow-none"
                   >
-                    {copied ? <Check className="size-3.5 text-sage" strokeWidth={1.5} /> : <Copy className="size-3.5" strokeWidth={1.5} />}
-                  </button>
-                </div>
-                <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
-                  It opens Claude in your browser, then prints a long-lived token.
-                </p>
-              </Step>
+                    <KeyRound className="size-4 shrink-0 text-faint" strokeWidth={1.75} />
+                    <span className="flex-1">console.anthropic.com → API keys → <b className="font-medium">Create key</b></span>
+                    <ExternalLink className="size-3.5 shrink-0 text-faint" strokeWidth={1.75} />
+                  </a>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
+                    New accounts need a few dollars of credit under Billing. A short video usually costs well under a dollar.
+                  </p>
+                </Step>
+              ) : (
+                <Step n={1} title="In your terminal, run">
+                  <div className="field mt-2 flex items-center gap-3 bg-bg py-1.5 pr-1.5 pl-3.5 shadow-none">
+                    <code className="flex-1 font-mono text-[13px] select-all">{COMMAND}</code>
+                    <button
+                      type="button"
+                      onClick={copy}
+                      className="rounded-[7px] p-1.5 text-faint transition-colors hover:bg-hover hover:text-fg"
+                      aria-label="Copy command"
+                    >
+                      {copied ? <Check className="size-3.5 text-sage" strokeWidth={1.5} /> : <Copy className="size-3.5" strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
+                    It opens Claude in your browser, then prints a long-lived token. No Claude Code yet?{" "}
+                    <code className="font-mono">npm i -g @anthropic-ai/claude-code</code>
+                  </p>
+                </Step>
+              )}
 
-              <Step n={2} title="Paste the token">
+              <Step n={2} title={mode === "key" ? "Paste the key" : "Paste the token"}>
                 <div className="relative mt-2">
                   <input
                     type={show ? "text" : "password"}
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
-                    placeholder="sk-ant-oat01-…"
+                    placeholder={mode === "key" ? "sk-ant-api03-…" : "sk-ant-oat01-…"}
+                    aria-label={mode === "key" ? "API key" : "Claude token"}
                     autoComplete="off"
                     spellCheck={false}
                     autoFocus
@@ -129,11 +164,11 @@ export default function LoginPage() {
                     {show ? <EyeOff className="size-3.5" strokeWidth={1.5} /> : <Eye className="size-3.5" strokeWidth={1.5} />}
                   </button>
                 </div>
-                {access.claude_account_restricted && (
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
-                    Claude-account sign-in is for the studio&apos;s owner. Everyone else: paste an Anthropic API key
-                    (<code className="font-mono">sk-ant-api…</code>) from{" "}
-                    <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="text-muted underline underline-offset-2 hover:text-fg">console.anthropic.com</a>.
+                {wrongKind && (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-brick">
+                    That&apos;s a Claude-account token (from <code className="font-mono">claude setup-token</code>). Here, only the
+                    studio&apos;s owner can use one. Paste an API key from console.anthropic.com instead; it starts with{" "}
+                    <code className="font-mono">sk-ant-api</code>.
                   </p>
                 )}
               </Step>
@@ -165,16 +200,24 @@ export default function LoginPage() {
               <ErrorNote className="mt-6">{error}</ErrorNote>
             )}
 
-            <Button type="submit" variant="primary" size="lg" className="mt-7 w-full" loading={busy} disabled={!looksValid}>
+            <Button type="submit" variant="primary" size="lg" className="mt-7 w-full" loading={busy} disabled={!looksValid || wrongKind}>
               {busy ? "Checking with Claude" : "Enter the studio"}
               {!busy && <ArrowRight className="size-4" strokeWidth={1.5} />}
             </Button>
+
+            <button
+              type="button"
+              onClick={() => { setMode(mode === "key" ? "claude" : "key"); setError(null); }}
+              className="mt-4 w-full text-center text-[13px] text-muted underline-offset-4 hover:text-fg hover:underline"
+            >
+              {mode === "key"
+                ? access.claude_account_restricted ? "Studio owner? Sign in with your Claude account" : "Sign in with your Claude account instead"
+                : "Use an Anthropic API key instead"}
+            </button>
           </form>
 
           <p className="mt-6 px-1 text-[12px] leading-relaxed text-faint">
-            Your token is encrypted at rest and only used to run your own editor. No Claude Code yet?{" "}
-            <code className="font-mono">npm i -g @anthropic-ai/claude-code</code>. An Anthropic API key (
-            <code className="font-mono">sk-ant-api…</code>) works here too.
+            Your key or token is encrypted at rest and only used to run your own editor.
           </p>
         </div>
       </section>
