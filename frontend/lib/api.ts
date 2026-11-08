@@ -160,8 +160,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown) => JSON.stringify(body);
 
 export const api = {
-  login: (token: string, name: string) =>
-    request<User>("/auth/login", { method: "POST", body: json({ token, name }) }),
+  login: (token: string, name: string, invite = "") =>
+    request<User>("/auth/login", { method: "POST", body: json({ token, name, invite }) }),
+  access: () => request<{ invite_required: boolean; claude_account_restricted: boolean }>("/auth/access"),
   me: () => request<User>("/auth/me"),
   updateMe: (name: string) => request<User>("/auth/me", { method: "PATCH", body: json({ name }) }),
   logout: () => request("/auth/logout", { method: "POST" }),

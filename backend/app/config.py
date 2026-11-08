@@ -38,6 +38,15 @@ COOKIE_NAME = "picasso_session"
 COOKIE_SECURE = os.environ.get("PICASSO_COOKIE_SECURE", "false").lower() == "true"
 FRONTEND_ORIGIN = os.environ.get("PICASSO_FRONTEND_ORIGIN", "http://localhost:3100")
 
+# Who may sign in (both unset = anyone, which suits local use).
+# Claude-account tokens (claude setup-token) are limited to these workspace ids, because Anthropic's
+# terms don't allow offering claude.ai login to other people without approval. API keys are unaffected.
+CLAUDE_ACCOUNT_ALLOWLIST = {
+    w.strip() for w in os.environ.get("PICASSO_CLAUDE_ACCOUNT_ALLOWLIST", "").split(",") if w.strip()
+}
+# Creating a new workspace needs this code; returning users don't.
+INVITE_CODE = os.environ.get("PICASSO_INVITE_CODE", "").strip()
+
 # Each user's agents must run on that user's own Claude credential, never on
 # whatever happens to be configured for the server process.
 for _var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"):

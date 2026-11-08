@@ -134,13 +134,40 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 
 | Var | Default | |
 | --- | --- | --- |
-| `PICASSO_MODEL` | `claude-opus-5-5` | Model the agent uses |
+| `PICASSO_MODEL` | `claude-opus-5-5` | Fallback model (each user picks theirs in Settings) |
 | `PICASSO_DATA_DIR` | `backend/data` | DB, uploads, renders |
 | `PICASSO_SECRET_KEY` | auto-generated in data dir | Fernet key for stored tokens |
 | `PICASSO_AGENT_MAX_TURNS` | `80` | |
 | `PICASSO_COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
 | `PICASSO_FFMPEG` / `PICASSO_FONT` | auto | Override the ffmpeg binary / caption font |
-| `PICASSO_BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | Where Next proxies `/api` |
+| `PICASSO_BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | Where Next proxies `/api` (fixed at build time) |
+| `PICASSO_CLAUDE_ACCOUNT_ALLOWLIST` | empty (anyone) | Workspace ids allowed to sign in with a Claude-account token; others must use API keys |
+| `PICASSO_INVITE_CODE` | empty (open) | Required to create a new workspace; returning users don't need it |
+
+## Deploying (Google Compute Engine)
+
+Picasso runs as three containers on one VM (`deploy/docker-compose.yml`): the FastAPI backend (agent,
+ffmpeg, SQLite, files on a persistent volume), the Next.js frontend, and Caddy for automatic HTTPS.
+Caddy sends `/api/*` straight to the backend so large uploads and live progress skip the Next proxy.
+A VM suits this app better than Cloud Run: runs take minutes, rendering needs steady CPU, and the
+database and media live on disk.
+
+```bash
+gcloud auth login
+gcloud config set project <your-project-id>        # billing must be enabled
+CLAUDE_ACCOUNT_ALLOWLIST=usr_… deploy/gcp-vm.sh create
+```
+
+`create` reserves a static IP, opens ports 80/443, creates an `e2-standard-2` Debian VM with a 50 GB
+disk, uploads the settings in `deploy/.env` (domain, allowlist, invite code, footage keys from
+`backend/.env`; never committed) and builds the stack. Without a domain the site is served at
+`https://<ip-with-dashes>.sslip.io`; set `DOMAIN=` (with an A record pointing at the IP) to use your
+own. Later: `deploy/gcp-vm.sh update` (pull from GitHub and rebuild), `env` (change settings),
+`status`, `logs`, `ssh`. Roughly $50/month for the VM and disk; `MACHINE=e2-medium` halves that at the
+cost of slower renders.
+
+Who can sign in: Claude-account tokens only for the workspace ids in the allowlist (find yours in
+Settings → Account), Anthropic API keys for anyone with the invite code.
 
 ## Not built yet
 

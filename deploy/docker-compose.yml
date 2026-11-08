@@ -1,0 +1,36 @@
+# Picasso on one machine: Caddy (HTTPS) -> web (Next.js) and api (FastAPI + agent + ffmpeg).
+# Settings come from deploy/.env (see deploy/env.example). Data lives in the picasso-data volume.
+services:
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PICASSO_DATA_DIR: /data
+      PICASSO_COOKIE_SECURE: "true"
+      PICASSO_FRONTEND_ORIGIN: https://${PICASSO_DOMAIN}
+    volumes:
+      - picasso-data:/data
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        PICASSO_BACKEND_URL: http://backend:8000
+    restart: unless-stopped
+    depends_on: [backend]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      PICASSO_DOMAIN: ${PICASSO_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [frontend, backend]
+
+volumes:
+  picasso-data:
+  caddy-data:

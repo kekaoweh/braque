@@ -212,6 +212,9 @@ export default function SettingsPage() {
               <Row label="Connected to Claude" hint={user.token_kind === "oauth" ? "With a Claude account token (claude setup-token)." : "With an Anthropic API key."}>
                 <span className="font-mono text-[12.5px] text-muted">{user.token_hint}</span>
               </Row>
+              <Row label="Workspace ID" hint="Identifies this workspace, e.g. for a server's Claude-account allowlist.">
+                <span className="font-mono text-[12.5px] text-muted select-all">{user.id}</span>
+              </Row>
               <div className="flex flex-wrap gap-2 pt-4">
                 <Button onClick={signOut} icon={<LogOut className="size-3.5" strokeWidth={1.75} />}>Sign out</Button>
                 <Button variant="danger" onClick={forget} icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />}>Disconnect Claude</Button>

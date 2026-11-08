@@ -1,0 +1,24 @@
+# Automatic HTTPS (Let's Encrypt) for PICASSO_DOMAIN, e.g. 34-12-56-78.sslip.io or your own domain.
+{$PICASSO_DOMAIN} {
+	encode zstd gzip
+
+	# The API goes straight to FastAPI: big uploads and live progress (SSE) skip the Next.js proxy.
+	handle /api/* {
+		request_body {
+			max_size 4GB
+		}
+		reverse_proxy backend:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

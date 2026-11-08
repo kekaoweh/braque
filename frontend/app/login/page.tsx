@@ -14,6 +14,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
+  const [invite, setInvite] = useState("");
+  const [access, setAccess] = useState({ invite_required: false, claude_account_restricted: false });
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -21,6 +23,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     api.me().then(() => router.replace("/")).catch(() => {});
+    api.access().then(setAccess).catch(() => {});
   }, [router]);
 
   const copy = async () => {
@@ -34,7 +37,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await api.login(token.trim(), name.trim());
+      await api.login(token.trim(), name.trim(), invite.trim());
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -126,9 +129,28 @@ export default function LoginPage() {
                     {show ? <EyeOff className="size-3.5" strokeWidth={1.5} /> : <Eye className="size-3.5" strokeWidth={1.5} />}
                   </button>
                 </div>
+                {access.claude_account_restricted && (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
+                    Claude-account sign-in is for the studio&apos;s owner. Everyone else: paste an Anthropic API key
+                    (<code className="font-mono">sk-ant-api…</code>) from{" "}
+                    <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="text-muted underline underline-offset-2 hover:text-fg">console.anthropic.com</a>.
+                  </p>
+                )}
               </Step>
 
-              <Step n={3} title="Name your studio" optional>
+              {access.invite_required && (
+                <Step n={3} title="Invite code" note="first sign-in only">
+                  <input
+                    value={invite}
+                    onChange={(e) => setInvite(e.target.value)}
+                    placeholder="The code you were given"
+                    autoComplete="off"
+                    className="field mt-2 h-10 w-full px-3.5 text-[14px]"
+                  />
+                </Step>
+              )}
+
+              <Step n={access.invite_required ? 4 : 3} title="Name your studio" note="optional">
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -160,14 +182,14 @@ export default function LoginPage() {
   );
 }
 
-function Step({ n, title, optional, children }: { n: number; title: string; optional?: boolean; children: React.ReactNode }) {
+function Step({ n, title, note, children }: { n: number; title: string; note?: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
       <StepNumber n={n} />
       <div className="min-w-0 flex-1">
         <div className="text-[14px] leading-6 font-medium">
           {title}
-          {optional && <span className="ml-2 font-normal text-faint">optional</span>}
+          {note && <span className="ml-2 font-normal text-faint">{note}</span>}
         </div>
         {children}
       </div>

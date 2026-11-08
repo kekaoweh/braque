@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from .agent import verify_credential
-from .config import COOKIE_NAME, COOKIE_SECURE, SESSION_DAYS, fernet
+import hmac
+
+from .config import CLAUDE_ACCOUNT_ALLOWLIST, COOKIE_NAME, COOKIE_SECURE, INVITE_CODE, SESSION_DAYS, fernet
 from .db import AuthSession, User, get_session, now
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -29,6 +31,18 @@ def token_kind(token: str) -> str:
 class LoginIn(BaseModel):
     token: str = Field(min_length=20, max_length=500)
     name: str = Field(default="", max_length=80)
+    invite: str = Field(default="", max_length=200)
+
+
+class AccessOut(BaseModel):
+    invite_required: bool
+    claude_account_restricted: bool
+
+
+@router.get("/access", response_model=AccessOut)
+def access():
+    """What the sign-in page should ask for."""
+    return AccessOut(invite_required=bool(INVITE_CODE), claude_account_restricted=bool(CLAUDE_ACCOUNT_ALLOWLIST))
 
 
 class UserOut(BaseModel):
@@ -49,6 +63,12 @@ async def login(body: LoginIn, response: Response, db: Session = Depends(get_ses
     # One workspace per Claude credential: signing in again with the same token lands
     # in the same workspace.
     user_id = "usr_" + _sha("picasso-user:" + token)[:20]
+    # Gatekeeping happens before the token is checked with Claude, so refusals are instant.
+    if kind == "oauth" and CLAUDE_ACCOUNT_ALLOWLIST and user_id not in CLAUDE_ACCOUNT_ALLOWLIST:
+        raise HTTPException(403, "Claude-account sign-in is limited to the studio's owner here. "
+                                 "Sign in with an Anthropic API key (sk-ant-api…) instead.")
+    if INVITE_CODE and not db.get(User, user_id) and not hmac.compare_digest(body.invite.strip(), INVITE_CODE):
+        raise HTTPException(403, "This studio is invite-only. Enter the invite code you were given.")
     try:
         await verify_credential(token, kind, user_id)
     except Exception as exc:  # noqa: BLE001
