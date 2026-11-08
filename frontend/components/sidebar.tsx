@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { ChevronsUpDown, Home, LogOut, Palette, PanelLeftClose, Pencil, Plus, Search, ShieldOff } from "lucide-react";
+import { ChevronsUpDown, Home, LogOut, Moon, Palette, PanelLeftClose, Plus, Search, Settings, ShieldOff, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,9 +12,11 @@ import { Wordmark } from "@/components/logo";
 import { STATUS_LABELS } from "@/components/status";
 import { Button, IconButton, Menu, MenuItem, MenuLabel } from "@/components/ui";
 import { ACTIVE_STATUSES, api, media } from "@/lib/api";
+import { toggleTheme, useAppearance } from "@/lib/appearance";
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
-  const { user, setUser, projects, refreshProjects } = useApp();
+  const { user, projects, refreshProjects } = useApp();
+  const { resolved } = useAppearance();
   const pathname = usePathname();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -29,11 +31,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     } finally {
       setCreating(false);
     }
-  };
-
-  const rename = async () => {
-    const name = window.prompt("Studio name", user.name);
-    if (name?.trim()) setUser(await api.updateMe(name.trim()));
   };
 
   const signOut = async () => {
@@ -81,6 +78,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         <NavLink href="/styles" active={pathname === "/styles"} icon={<Palette className="size-4" strokeWidth={1.75} />} onClick={onClose}>
           Styles
         </NavLink>
+        <NavLink href="/settings" active={pathname === "/settings"} icon={<Settings className="size-4" strokeWidth={1.75} />} onClick={onClose}>
+          Settings
+        </NavLink>
       </nav>
 
       <div className="mt-5 flex items-center justify-between px-5 pb-1.5">
@@ -122,11 +122,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         })}
       </div>
 
-      <div className="border-t border-line p-3">
+      <div className="flex items-center gap-1 border-t border-line p-3">
         <Menu
           width="w-60"
           up
-          className="w-full"
+          className="min-w-0 flex-1"
           trigger={({ toggle }) => (
             <button onClick={toggle} className="flex w-full items-center gap-2.5 rounded-control p-1.5 text-left transition-colors hover:bg-hover">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),color-mix(in_srgb,var(--accent)_60%,var(--fg)))] text-[12.5px] font-semibold text-white shadow-e1">
@@ -144,8 +144,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <>
               <MenuLabel>Connected as <span className="font-mono text-muted">{user.token_hint}</span></MenuLabel>
               <div className="my-1 h-px bg-line" />
-              <MenuItem icon={<Pencil className="size-3.5" strokeWidth={1.75} />} onClick={() => { close(); rename(); }}>
-                Rename studio
+              <MenuItem icon={<Settings className="size-3.5" strokeWidth={1.75} />} onClick={() => { close(); onClose?.(); router.push("/settings"); }}>
+                Settings
               </MenuItem>
               <MenuItem icon={<LogOut className="size-3.5" strokeWidth={1.75} />} onClick={signOut}>
                 Sign out
@@ -156,6 +156,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             </>
           )}
         </Menu>
+        <IconButton
+          onClick={toggleTheme}
+          aria-label={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={resolved === "dark" ? "Light mode" : "Dark mode"}
+          className="shrink-0"
+        >
+          {resolved === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
+        </IconButton>
       </div>
     </aside>
   );

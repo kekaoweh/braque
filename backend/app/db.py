@@ -24,6 +24,7 @@ class User(SQLModel, table=True):
     token_kind: str  # "oauth" (claude setup-token) or "api_key"
     token_enc: str
     token_hint: str
+    settings_json: str = ""  # see app/settings.py
     created_at: datetime = Field(default_factory=now)
 
 

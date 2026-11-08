@@ -166,7 +166,29 @@ try {
   await page.getByText("QA Warm v2", { exact: true }).waitFor({ state: "detached" });
   ok("a custom style is removed", true);
 
-  // 9. Remove the video, then sign out
+  // 9. Settings and theme
+  await page.goto(`${BASE}/settings`);
+  await page.getByRole("heading", { name: "Make the studio yours" }).waitFor();
+  await page.getByRole("button", { name: "Dark", exact: true }).click();
+  await page.reload();
+  await page.getByRole("heading", { name: "Make the studio yours" }).waitFor();
+  ok("dark mode sticks across a reload", (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  ok("the sidebar toggle switches back to light", (await page.evaluate(() => document.documentElement.dataset.theme)) === "light");
+  await page.getByRole("button", { name: "System", exact: true }).click();
+  await page.getByRole("button", { name: "Sonnet 5.5" }).click();
+  await page.getByRole("switch", { name: "Credits card" }).click();
+  await page.getByRole("button", { name: /1 min/ }).click();
+  await page.getByRole("button", { name: "15 sec", exact: true }).click();
+  await page.getByText("Saved").waitFor();
+  await page.waitForTimeout(500);
+  const prefs = await page.evaluate(async () => (await fetch("/api/settings")).json());
+  ok("editor settings are saved to the account", prefs.model === "claude-sonnet-5-5" && prefs.credits_card === false && prefs.default_seconds === 15);
+  await page.goto(`${BASE}/`);
+  await page.getByRole("heading", { name: /What shall we/ }).waitFor();
+  ok("new videos start from the saved defaults", await page.getByRole("button", { name: /15 sec/ }).isVisible());
+
+  // 10. Remove the video, then sign out
   await page.goto(projectUrl);
   await page.getByRole("button", { name: "More" }).click();
   page.once("dialog", (d) => d.accept());

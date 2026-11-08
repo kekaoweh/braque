@@ -1,12 +1,13 @@
 "use client";
 
 import clsx from "clsx";
-import { CornerDownLeft, Film, Home, LogOut, Palette, Plus, Search } from "lucide-react";
+import { CornerDownLeft, Film, Home, LogOut, Moon, Palette, Plus, Search, Settings, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/app-context";
 import { STATUS_LABELS } from "@/components/status";
 import { api, formatLength } from "@/lib/api";
+import { resolvedTheme, toggleTheme } from "@/lib/appearance";
 
 const OPEN_EVENT = "picasso:open-palette";
 
@@ -61,7 +62,14 @@ export function CommandPalette() {
       },
       { id: "studio", group: "Go to", label: "Studio", hint: "Home", icon: <Home className="size-4" strokeWidth={1.5} />, run: go("/") },
       { id: "styles", group: "Go to", label: "Styles", icon: <Palette className="size-4" strokeWidth={1.5} />, run: go("/styles") },
+      { id: "settings", group: "Go to", label: "Settings", hint: "Preferences", icon: <Settings className="size-4" strokeWidth={1.5} />, run: go("/settings") },
     ];
+    const dark = open && resolvedTheme() === "dark";
+    actions.splice(1, 0, {
+      id: "theme", group: "Actions", label: dark ? "Switch to light mode" : "Switch to dark mode", hint: "Theme",
+      icon: dark ? <Sun className="size-4" strokeWidth={1.5} /> : <Moon className="size-4" strokeWidth={1.5} />,
+      run: toggleTheme,
+    });
     const videos: Item[] = projects.map((p) => ({
       id: p.id,
       group: "Your videos",
@@ -78,7 +86,7 @@ export function CommandPalette() {
     const q = query.trim().toLowerCase();
     if (!q) return all;
     return all.filter((i) => `${i.label} ${i.hint ?? ""} ${i.group}`.toLowerCase().includes(q));
-  }, [projects, query, router, refreshProjects]);
+  }, [projects, query, router, refreshProjects, open]);
 
   useEffect(() => setIndex(0), [query]);
   useEffect(() => {

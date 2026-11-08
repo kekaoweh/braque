@@ -37,10 +37,44 @@
     radial-gradient(40% 40% at 90% 10%, rgba(108, 119, 89, 0.05), transparent 70%);
   --grain-opacity: 0.035;
   --grain-blend: multiply;
+  color-scheme: light;
+}
+
+/* Dark palette. Applied when the creator picks Dark, or picks System and the OS is dark. */
+:root[data-theme="dark"] {
+  --bg: #1d1b18;
+  --bg-soft: #161412;
+  --paper: #24211e;
+  --bg-hover: rgba(236, 230, 218, 0.05);
+  --bg-active: rgba(236, 230, 218, 0.08);
+  --fg: #ece6da;
+  --fg-muted: #aaa294;
+  --fg-faint: #776f64;
+  --border: #322e29;
+  --border-strong: #433e37;
+  --accent: #c48c70;
+  --accent-soft: rgba(196, 140, 112, 0.15);
+  --dusk: #aa9fab;
+  --dusk-soft: rgba(170, 159, 171, 0.13);
+  --sage: #a0ab8c;
+  --sage-soft: rgba(160, 171, 140, 0.14);
+  --brick: #cd8676;
+  --brick-soft: rgba(205, 134, 118, 0.14);
+  --film: #12100e;
+  --elev-1: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
+  --elev-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
+  --elev-3: 0 2px 4px rgba(0, 0, 0, 0.35), 0 24px 48px -18px rgba(0, 0, 0, 0.7);
+  --elev-4: 0 4px 10px rgba(0, 0, 0, 0.4), 0 40px 80px -24px rgba(0, 0, 0, 0.8);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glow: radial-gradient(60% 55% at 50% 0%, rgba(196, 140, 112, 0.07), transparent 70%),
+    radial-gradient(40% 40% at 90% 10%, rgba(160, 171, 140, 0.04), transparent 70%);
+  --grain-opacity: 0.03;
+  --grain-blend: screen;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1d1b18;
     --bg-soft: #161412;
     --paper: #24211e;
@@ -69,6 +103,7 @@
       radial-gradient(40% 40% at 90% 10%, rgba(160, 171, 140, 0.04), transparent 70%);
     --grain-opacity: 0.03;
     --grain-blend: screen;
+    color-scheme: dark;
   }
 }
 
@@ -233,6 +268,16 @@ textarea {
   }
 }
 
+/* Generated covers are light earth tones; dim them in the dark theme so they don't glare. */
+:root[data-theme="dark"] .cover {
+  filter: brightness(0.5) saturate(0.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cover {
+    filter: brightness(0.5) saturate(0.85);
+  }
+}
+
 /* Thumbnails sit a touch quieter than the UI around them and warm up on hover. */
 .gallery-img {
   filter: saturate(0.8) contrast(0.97);
@@ -341,8 +386,23 @@ textarea {
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
+/* Reduced motion: from the OS, or chosen in Settings (data-motion="reduced"). */
 @media (prefers-reduced-motion: reduce) {
   .draw-line, .fade-up, .ink-pulse { animation: none; }
   .gallery-img { transition: none; }
   .tilt { transform: none !important; transition: none; }
+}
+:root[data-motion="reduced"] {
+  .draw-line, .fade-up, .ink-pulse { animation: none; }
+  .gallery-img { transition: none; }
+  .tilt { transform: none !important; transition: none; }
+  .tilt-sheen { display: none; }
+  .scroll-smooth { scroll-behavior: auto; }
+}
+
+/* Switching themes shouldn't animate every surface at once. */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: none !important;
 }

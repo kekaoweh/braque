@@ -75,7 +75,7 @@ const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >
 export function Cover({ seed, label, small }: { seed: string; label?: string; small?: boolean }) {
   const [a, b] = COVERS[hash(seed) % COVERS.length];
   return (
-    <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${a}, ${b})` }}>
+    <div className="cover absolute inset-0" style={{ background: `linear-gradient(135deg, ${a}, ${b})` }}>
       <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" aria-hidden>
         <path d="M96 0H160V90H58Z" fill="#fff" opacity="0.14" />
         {!small && (

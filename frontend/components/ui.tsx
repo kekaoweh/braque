@@ -332,3 +332,38 @@ export function useMediaQuery(query: string) {
   }, [query]);
   return matches;
 }
+
+/** On/off switch. */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={clsx(
+        "relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        checked ? "bg-accent" : "bg-line-strong",
+      )}
+    >
+      <span
+        className={clsx(
+          "size-[18px] rounded-full bg-paper shadow-e1 transition-transform duration-200",
+          checked ? "translate-x-[18px]" : "translate-x-[2px]",
+        )}
+      />
+    </button>
+  );
+}

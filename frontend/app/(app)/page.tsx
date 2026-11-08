@@ -24,12 +24,12 @@ function greeting() {
 }
 
 export default function StudioPage() {
-  const { user, projects, styles, refreshProjects } = useApp();
+  const { user, projects, styles, settings, refreshProjects } = useApp();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
-  const [seconds, setSeconds] = useState(60);
-  const [aspect, setAspect] = useState<Aspect>("16:9");
-  const [styleId, setStyleId] = useState("sty_explainer");
+  const [seconds, setSeconds] = useState(settings.default_seconds);
+  const [aspect, setAspect] = useState<Aspect>(settings.default_aspect);
+  const [styleId, setStyleId] = useState(settings.default_style_id ?? "sty_explainer");
   const [busy, setBusy] = useState(false);
 
   const begin = async () => {

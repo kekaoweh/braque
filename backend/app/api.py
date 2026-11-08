@@ -12,6 +12,7 @@ from sqlmodel import Session, col, or_, select
 from sse_starlette.sse import EventSourceResponse
 
 from . import pipeline, sources
+from . import settings as user_settings
 from .auth import current_user
 from .config import THUMBS_DIR, UPLOADS_DIR
 from .db import Asset, Project, Run, RunEvent, Style, User, engine, get_session, now
@@ -184,6 +185,11 @@ class ProjectUpdate(BaseModel):
     script: Optional[str] = Field(default=None, max_length=200000)
 
 
+def _style_ok(style_id: str, user: User, db: Session) -> bool:
+    s = db.get(Style, style_id)
+    return bool(s and (not s.user_id or s.user_id == user.id))
+
+
 def _check_style(style_id: Optional[str], user: User, db: Session) -> None:
     if style_id:
         s = db.get(Style, style_id)
@@ -201,8 +207,20 @@ def list_projects(user: User = Depends(current_user), db: Session = Depends(get_
 @router.post("/projects", response_model=ProjectOut)
 def create_project(body: ProjectCreate, user: User = Depends(current_user),
                    db: Session = Depends(get_session)):
-    _check_style(body.style_id, user, db)
-    p = Project(user_id=user.id, **body.model_dump())
+    # Anything the client didn't choose comes from the creator's defaults in Settings.
+    prefs = user_settings.load(user)
+    data = body.model_dump()
+    given = body.model_fields_set
+    if "target_seconds" not in given:
+        data["target_seconds"] = prefs.default_seconds
+    if "aspect" not in given:
+        data["aspect"] = prefs.default_aspect
+    if "style_id" not in given:
+        data["style_id"] = prefs.default_style_id
+        if prefs.default_style_id and not _style_ok(prefs.default_style_id, user, db):
+            data["style_id"] = "sty_explainer"
+    _check_style(data["style_id"], user, db)
+    p = Project(user_id=user.id, **data)
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -513,3 +531,31 @@ def footage_sources(user: User = Depends(current_user)):
 @router.get("/meta")
 def meta():
     return {"aspects": list(ASPECTS), "timeline_schema": Timeline.model_json_schema()}
+
+
+# ---------------------------------------------------------------------------
+# Settings
+
+
+class SettingsOut(user_settings.Settings):
+    models: dict[str, str] = Field(default_factory=lambda: dict(user_settings.MODELS))
+
+
+@router.get("/settings", response_model=SettingsOut)
+def get_settings(user: User = Depends(current_user)):
+    return SettingsOut(**user_settings.load(user).model_dump())
+
+
+@router.put("/settings", response_model=SettingsOut)
+def put_settings(body: user_settings.Settings, user: User = Depends(current_user),
+                 db: Session = Depends(get_session)):
+    if body.default_style_id:
+        _check_style(body.default_style_id, user, db)
+    known = {p.name for p in sources.PROVIDERS}
+    body.libraries_off = [n for n in dict.fromkeys(body.libraries_off) if n in known]
+    body.language = body.language.strip()
+    row = db.get(User, user.id)
+    row.settings_json = body.model_dump_json()
+    db.add(row)
+    db.commit()
+    return SettingsOut(**body.model_dump())

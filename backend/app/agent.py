@@ -26,6 +26,7 @@ from pydantic import ValidationError
 from sqlmodel import Session, select
 
 from . import sources
+from . import settings as user_settings
 from .config import AGENT_MAX_TURNS, CLAUDE_HOMES_DIR, MODEL, THUMBS_DIR, UPLOADS_DIR, WORK_DIR, fernet
 from .db import Asset, Project, Style, User, engine, now
 from .media import MediaError, contact_sheet, make_thumbnail, probe
@@ -112,9 +113,10 @@ def credential_env_for(token: str, kind: str, user_id: str) -> dict[str, str]:
     return env
 
 
-def base_options(env: dict[str, str], cwd: Path, web_search: bool = False, **kwargs: Any) -> ClaudeAgentOptions:
+def base_options(env: dict[str, str], cwd: Path, web_search: bool = False, model: str = MODEL,
+                 **kwargs: Any) -> ClaudeAgentOptions:
     return ClaudeAgentOptions(
-        model=MODEL,
+        model=model,
         env=env,
         cwd=str(cwd),
         tools=["WebSearch"] if web_search else [],
@@ -152,7 +154,7 @@ def _load_assets(project_id: str) -> dict[str, Asset]:
         return {a.id: a for a in s.exec(select(Asset).where(Asset.project_id == project_id)).all()}
 
 
-def build_studio_server(project_id: str, user_id: str, orientation: str):
+def build_studio_server(project_id: str, user_id: str, orientation: str, libraries_off: list[str] | None = None):
     candidates: dict[str, sources.Candidate] = {}
     downloads: dict[str, asyncio.Task] = {}  # candidate id -> import task
     download_slots = asyncio.Semaphore(4)
@@ -277,7 +279,7 @@ def build_studio_server(project_id: str, user_id: str, orientation: str):
             return _err("Give a query.")
         kind = args.get("kind") or "video"
         found, notes = await sources.search_all(query, kind, orientation, int(args.get("per_library") or 5),
-                                                args.get("providers"))
+                                                args.get("providers"), libraries_off)
         if not found:
             hint = " (" + "; ".join(notes) + ")" if notes else ""
             return _ok(f"No {kind} results for “{query}”{hint}. Try different, more general words.")
@@ -377,7 +379,7 @@ TOOL_LABELS = {
 Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
-def build_prompt(project: Project, style: Style | None, instruction: str) -> str:
+def build_prompt(project: Project, style: Style | None, instruction: str, notes: list[str] | None = None) -> str:
     width, height = ASPECTS.get(project.aspect, ASPECTS["16:9"])
     minutes, seconds = divmod(project.target_seconds, 60)
     length = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
@@ -394,6 +396,8 @@ def build_prompt(project: Project, style: Style | None, instruction: str) -> str
             f"Average shot length ~{style.pacing_seconds}s. Default caption position: "
             f"{style.caption_position}. Default transition: {style.transition}.",
         ]
+    if notes:
+        parts += ["## Creator preferences (always follow these)", "\n".join(f"- {n}" for n in notes)]
     if project.timeline_json and instruction:
         parts += [
             "## Current edit (revise this rather than starting over unless asked)",
@@ -410,21 +414,24 @@ def build_prompt(project: Project, style: Style | None, instruction: str) -> str
 async def run_agent(user: User, project: Project, style: Style | None, instruction: str,
                     emit: Emit) -> float | None:
     orientation = {"9:16": "portrait", "4:5": "portrait", "1:1": "square"}.get(project.aspect, "landscape")
-    server, tool_names, cancel_downloads = build_studio_server(project.id, user.id, orientation)
+    prefs = user_settings.load(user)
+    server, tool_names, cancel_downloads = build_studio_server(project.id, user.id, orientation, prefs.libraries_off)
     cwd = WORK_DIR / project.id
     cwd.mkdir(parents=True, exist_ok=True)
     options = base_options(
-        credential_env(user), cwd, web_search=True,
+        credential_env(user), cwd, web_search=prefs.web_research,
+        model=prefs.model,
         system_prompt=SYSTEM_PROMPT,
         mcp_servers={"studio": server},
-        allowed_tools=tool_names + ["WebSearch"],
+        allowed_tools=tool_names + (["WebSearch"] if prefs.web_research else []),
         max_turns=AGENT_MAX_TURNS,
-        effort="high",
+        effort=prefs.effort,
     )
     cost = None
     error = None
     try:
-        cost, error = await _drive(query(prompt=build_prompt(project, style, instruction), options=options), emit)
+        prompt = build_prompt(project, style, instruction, user_settings.prompt_notes(prefs))
+        cost, error = await _drive(query(prompt=prompt, options=options), emit)
     finally:
         cancel_downloads()
     # Raise only after the stream is drained; leaving the SDK's generator early

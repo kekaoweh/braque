@@ -298,9 +298,11 @@ def client() -> httpx.AsyncClient:
 
 
 async def search_all(query: str, kind: Kind, orientation: str, per_provider: int = 6,
-                     only: Optional[list[str]] = None) -> tuple[list[Candidate], list[str]]:
-    """Search every enabled library in parallel and interleave the results."""
+                     only: Optional[list[str]] = None,
+                     excluded: Optional[list[str]] = None) -> tuple[list[Candidate], list[str]]:
+    """Search every enabled library (minus any the creator switched off) in parallel and interleave the results."""
     chosen = [p for p in PROVIDERS if p.enabled and kind in p.kinds
+              and p.name not in (excluded or [])
               and (not only or any(o.lower() in p.name.lower() for o in only))]
     notes: list[str] = []
     async with client() as http:

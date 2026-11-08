@@ -104,6 +104,21 @@ export type Style = {
 
 export type StyleInput = Omit<Style, "id" | "builtin">;
 
+/** Account-wide studio settings (stored on the server; appearance is per device, see lib/appearance). */
+export type Settings = {
+  default_seconds: number;
+  default_aspect: Aspect;
+  default_style_id: string | null;
+  model: "claude-opus-5-5" | "claude-sonnet-5-5";
+  effort: "low" | "medium" | "high";
+  web_research: boolean;
+  libraries_off: string[];
+  on_screen_text: "style" | "minimal" | "none";
+  music: "auto" | "none";
+  credits_card: boolean;
+  language: string;
+};
+
 export type RunEvent = {
   id: number;
   type: "status" | "message" | "tool" | "progress" | "error";
@@ -166,6 +181,8 @@ export const api = {
 
   styles: () => request<Style[]>("/styles"),
   sources: () => request<FootageSource[]>("/sources"),
+  settings: () => request<Settings>("/settings"),
+  saveSettings: (body: Settings) => request<Settings>("/settings", { method: "PUT", body: json(body) }),
   createStyle: (body: StyleInput) => request<Style>("/styles", { method: "POST", body: json(body) }),
   updateStyle: (id: string, body: StyleInput) =>
     request<Style>(`/styles/${id}`, { method: "PUT", body: json(body) }),

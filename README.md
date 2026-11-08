@@ -100,6 +100,22 @@ five built-in styles, and users can create their own on the Styles page.
   thumbnails and a pulsing dot while the editor is working.
 - In the editor, the **section bar** (Brief, Preview, Timeline, Footage, Credits) follows your scroll
   and jumps to any section.
+- **Light and dark mode**: the sun/moon button at the bottom of the sidebar, "Switch to dark mode" in
+  ⌘K, or Settings → Appearance (Light, Dark or System). Saved per device and applied before the page
+  paints, so there's no flash.
+
+## Settings
+
+Settings (sidebar, or ⌘K) has five groups. Appearance is stored in the browser; everything else is
+saved to the account (`GET/PUT /api/settings`, JSON on the user row) and used on every run.
+
+| Group | Settings | Effect |
+|---|---|---|
+| Appearance | Theme, Motion | Light/Dark/System; Reduced turns off tilt and small animations |
+| New videos | Running time, Format, Style | Starting point for new videos (the Studio composer, New video, ⌘K) |
+| The editor | Model (Opus 5.5 / Sonnet 5.5), Thoroughness (agent effort), Web research, Footage libraries | Agent options, and which libraries `search_footage` may use |
+| The finished video | On-screen words, Music, Credits card, Language | Added to the agent's brief as "creator preferences" |
+| Account | Studio name, connected credential, sign out, disconnect | |
 
 ## Testing
 
