@@ -5,6 +5,7 @@ description = "Picasso API: FastAPI service that runs the Claude editing agent a
 requires-python = ">=3.12"
 authors = [{ name = "Keka Oweh" }]
 dependencies = [
+    "boto3>=1.40",
     "claude-agent-sdk>=0.2.174",
     "cryptography>=50.0.2",
     "fastapi>=0.162.0",
@@ -22,3 +23,8 @@ Repository = "https://github.com/kekaoweh/braque"
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    "moto[server]>=5.1",
+]

@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app import storage  # noqa: E402
 from app.config import CLAUDE_HOMES_DIR, UPLOADS_DIR, fernet  # noqa: E402
 from app.db import (  # noqa: E402
     Asset, AuthSession, Project, Run, RunEvent, Session, Style, User, engine, init_db, now, select,
@@ -46,11 +47,13 @@ def cleanup() -> None:
                     s.delete(e)
                 if r.output_path:
                     Path(r.output_path).unlink(missing_ok=True)
+                    storage.delete_later([r.output_path])
                 s.delete(r)
             for a in s.exec(select(Asset).where(Asset.user_id == u.id)).all():
                 Path(a.path).unlink(missing_ok=True)
                 if a.thumb_path:
                     Path(a.thumb_path).unlink(missing_ok=True)
+                storage.delete_later([a.path, a.thumb_path])
                 s.delete(a)
             for model in (Project, Style, AuthSession):
                 for row in s.exec(select(model).where(model.user_id == u.id)).all():

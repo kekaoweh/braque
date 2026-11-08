@@ -42,7 +42,7 @@ write_env() {
   # od reads a fixed number of bytes (a `tr </dev/urandom | head` pipe dies of SIGPIPE under pipefail).
   [ -n "$invite" ] || invite=$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
   local allow=${CLAUDE_ACCOUNT_ALLOWLIST:-$(grep -s '^PICASSO_CLAUDE_ACCOUNT_ALLOWLIST=' "$env_file" | cut -d= -f2- || true)}
-  local keys=$(grep -sE '^(PIXABAY_API_KEY|PEXELS_API_KEY)=' "$ROOT/backend/.env" || true)
+  local keys=$(grep -sE '^(PIXABAY_API_KEY|PEXELS_API_KEY|TIGRIS_[A-Z_]+)=' "$ROOT/backend/.env" || true)
   umask 077
   printf 'PICASSO_DOMAIN=%s\nPICASSO_CLAUDE_ACCOUNT_ALLOWLIST=%s\nPICASSO_INVITE_CODE=%s\n%s\n' \
     "$domain" "$allow" "$invite" "$keys" > "$env_file"

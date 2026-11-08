@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlmodel import Session, col, or_, select
 from sse_starlette.sse import EventSourceResponse
 
-from . import pipeline, sources
+from . import pipeline, sources, storage
 from . import settings as user_settings
 from .auth import current_user
 from .config import THUMBS_DIR, UPLOADS_DIR
@@ -107,7 +107,7 @@ def asset_out(a: Asset) -> AssetOut:
 
 def run_out(r: Run) -> RunOut:
     return RunOut(id=r.id, project_id=r.project_id, instruction=r.instruction, mode=r.mode,
-                  status=r.status, error=r.error, has_video=pipeline.output_file(r) is not None,
+                  status=r.status, error=r.error, has_video=pipeline.has_video(r),
                   duration=r.duration, cost_usd=r.cost_usd, created_at=r.created_at,
                   finished_at=r.finished_at)
 
@@ -258,6 +258,7 @@ async def delete_project(project_id: str, user: User = Depends(current_user), db
             db.delete(e)
         if f := pipeline.output_file(r):
             f.unlink(missing_ok=True)
+        storage.delete_later([r.output_path])
         db.delete(r)
     for a in _assets(db, p.id):
         _delete_asset_files(a)
@@ -275,6 +276,14 @@ def _delete_asset_files(a: Asset) -> None:
     Path(a.path).unlink(missing_ok=True)
     if a.thumb_path:
         Path(a.thumb_path).unlink(missing_ok=True)
+    storage.delete_later([a.path, a.thumb_path])
+
+
+def _from_cloud(path: str, **kwargs) -> RedirectResponse:
+    """Send the browser to a signed Tigris URL. The redirect is cached for an hour, well inside
+    the URL's lifetime, so thumbnails don't re-sign on every page view."""
+    return RedirectResponse(storage.signed_url(path, **kwargs), status_code=307,
+                            headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.post("/projects/{project_id}/assets", response_model=list[AssetOut])
@@ -318,6 +327,7 @@ async def upload_assets(project_id: str, files: list[UploadFile] = File(...),
     db.commit()
     for a in created:
         db.refresh(a)
+        storage.mirror_asset(a.id)
     return [asset_out(a) for a in created]
 
 
@@ -351,6 +361,8 @@ def delete_asset(asset_id: str, user: User = Depends(current_user), db: Session 
 @router.get("/assets/{asset_id}/file")
 def asset_file(asset_id: str, user: User = Depends(current_user), db: Session = Depends(get_session)):
     a = own_asset(asset_id, user, db)
+    if storage.ENABLED and a.in_cloud:
+        return _from_cloud(a.path, filename=a.name)
     return FileResponse(a.path, filename=a.name, content_disposition_type="inline")
 
 
@@ -359,6 +371,8 @@ def asset_thumb(asset_id: str, user: User = Depends(current_user), db: Session =
     a = own_asset(asset_id, user, db)
     if not a.thumb_path:
         raise HTTPException(404, "No thumbnail")
+    if storage.ENABLED and a.in_cloud:
+        return _from_cloud(a.thumb_path, content_type="image/jpeg")
     return FileResponse(a.thumb_path, media_type="image/jpeg",
                         headers={"Cache-Control": "private, max-age=86400"})
 
@@ -513,11 +527,13 @@ async def run_events(run_id: str, request: Request, after: int = 0,
 def run_video(run_id: str, download: bool = False, user: User = Depends(current_user),
               db: Session = Depends(get_session)):
     r = own_run(run_id, user, db)
-    f = pipeline.output_file(r)
-    if not f:
+    if not pipeline.has_video(r):
         raise HTTPException(404, "No video for this run")
     p = db.get(Project, r.project_id)
     safe = "".join(ch for ch in (p.name if p else "video") if ch.isalnum() or ch in " -_").strip() or "video"
+    if storage.ENABLED and r.in_cloud:
+        return _from_cloud(r.output_path, filename=f"{safe}.mp4", download=download, content_type="video/mp4")
+    f = pipeline.output_file(r)
     return FileResponse(f, media_type="video/mp4", filename=f"{safe}.mp4",
                         content_disposition_type="attachment" if download else "inline")
 

@@ -7,6 +7,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from .agent import run_agent
+from . import storage
 from .config import RENDERS_DIR, WORK_DIR
 from .db import Asset, Project, Run, RunEvent, Style, User, engine, now
 from .media import render_timeline
@@ -70,6 +71,14 @@ async def _execute(run_id: str) -> None:
         if errors := validate_timeline(timeline, assets):
             raise RuntimeError("Timeline references missing media: " + "; ".join(errors[:5]))
 
+        # Working copies may have been cleared from this machine; the bucket has them.
+        used = {c.asset_id for c in timeline.clips if c.asset_id}
+        if timeline.music:
+            used.add(timeline.music.asset_id)
+        for asset_id in used:
+            if asset_id in assets:
+                await storage.ensure_local(assets[asset_id].path)
+
         await _status(run_id, "rendering")
         out = RENDERS_DIR / f"{run_id}.mp4"
 
@@ -79,6 +88,7 @@ async def _execute(run_id: str) -> None:
         duration = await render_timeline(timeline, assets, style, project.aspect, out,
                                          WORK_DIR / run_id, progress)
         _set(run_id, output_path=str(out), duration=duration, finished_at=now())
+        storage.mirror_run(run_id)
         await _status(run_id, "done")
     except asyncio.CancelledError:
         _set(run_id, finished_at=now())
@@ -123,6 +133,10 @@ def recover_interrupted_runs() -> None:
             run.finished_at = now()
             s.add(run)
         s.commit()
+
+
+def has_video(run: Run) -> bool:
+    return output_file(run) is not None or bool(run.output_path and run.in_cloud and storage.ENABLED)
 
 
 def output_file(run: Run) -> Path | None:

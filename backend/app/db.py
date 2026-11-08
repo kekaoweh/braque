@@ -87,6 +87,7 @@ class Asset(SQLModel, table=True):
     source_url: str = ""
     credit: str = ""
     license: str = ""
+    in_cloud: bool = False  # file and thumbnail mirrored to Tigris (app/storage.py)
     created_at: datetime = Field(default_factory=now)
 
 
@@ -101,6 +102,7 @@ class Run(SQLModel, table=True):
     output_path: Optional[str] = None
     duration: Optional[float] = None
     cost_usd: Optional[float] = None
+    in_cloud: bool = False  # render mirrored to Tigris
     created_at: datetime = Field(default_factory=now)
     finished_at: Optional[datetime] = None
 

@@ -27,6 +27,7 @@ from sqlmodel import Session, select
 
 from . import sources
 from . import settings as user_settings
+from . import storage
 from .config import AGENT_MAX_TURNS, CLAUDE_HOMES_DIR, MODEL, THUMBS_DIR, UPLOADS_DIR, WORK_DIR, fernet
 from .db import Asset, Project, Style, User, engine, now
 from .media import MediaError, contact_sheet, make_thumbnail, probe
@@ -197,6 +198,7 @@ def build_studio_server(project_id: str, user_id: str, orientation: str, librari
             return _err(f"Unknown asset_id {args.get('asset_id')!r}; call list_assets.")
         if asset.kind == "audio":
             return _ok(f"{asset.name} is audio ({asset.duration or 0:.1f}s); it has no frames.")
+        await storage.ensure_local(asset.path)
         try:
             jpeg = await contact_sheet(asset, int(args.get("frames") or 6),
                                        float(args.get("start") or 0), args.get("end"))
@@ -353,6 +355,7 @@ def build_studio_server(project_id: str, user_id: str, orientation: str, librari
             with Session(engine) as s:
                 s.add(asset)
                 s.commit()
+            storage.mirror_asset(asset_id)
         dur = f"{info.duration:.1f}s" if info.duration and c.kind != "image" else "still"
         return f"{cid} -> asset_id {asset_id} ({c.kind}, {dur}, {info.width}x{info.height})"
 

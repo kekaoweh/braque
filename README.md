@@ -148,6 +148,27 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 | `PICASSO_BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | Where Next proxies `/api` (fixed at build time) |
 | `PICASSO_CLAUDE_ACCOUNT_ALLOWLIST` | empty (anyone) | Workspace ids allowed to sign in with a Claude-account token; others must use API keys |
 | `PICASSO_INVITE_CODE` | empty (open) | Required to create a new workspace; returning users don't need it |
+| `TIGRIS_ACCESS_KEY_ID` / `TIGRIS_SECRET_ACCESS_KEY` / `TIGRIS_BUCKET` | empty (local disk only) | Mirror media to Tigris; see Media storage |
+| `TIGRIS_ENDPOINT` | `https://t3.storage.dev` | S3 endpoint (`TIGRIS_ADDRESSING=path` for local S3 stand-ins) |
+
+## Media storage (Tigris)
+
+With `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY` and `TIGRIS_BUCKET` set (in `backend/.env`
+locally, `deploy/.env` on the server), every file Braque writes (uploads, imported footage,
+thumbnails, renders) is mirrored to a private Tigris bucket under the same path it has in the data
+folder, e.g. `uploads/usr_…/ast_….mp4`. `app/storage.py` does the work:
+
+- Uploads happen in the background after a file is saved; the asset or render is then flagged
+  `in_cloud`. Until then (or if Tigris is unreachable) it's served from local disk as before.
+- The browser loads media straight from Tigris via signed URLs (6-hour lifetime, redirect cached for
+  an hour). The bucket stays private, and Tigris has no download fees, unlike the VM's egress.
+- The local file stays as ffmpeg's working copy. If one goes missing, the renderer and the
+  editor's `view_asset` restore it from the bucket first.
+- Deleting a video, asset or project deletes its cloud copies.
+- `uv run python scripts/sync_storage.py` uploads files that existed before storage was turned on
+  (safe to re-run).
+
+The access key needs Editor (read/write) permission on the bucket.
 
 ## Deploying (Google Compute Engine)
 
