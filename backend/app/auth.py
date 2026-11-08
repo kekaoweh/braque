@@ -66,7 +66,8 @@ async def login(body: LoginIn, response: Response, db: Session = Depends(get_ses
     # Gatekeeping happens before the token is checked with Claude, so refusals are instant.
     if kind == "oauth" and CLAUDE_ACCOUNT_ALLOWLIST and user_id not in CLAUDE_ACCOUNT_ALLOWLIST:
         raise HTTPException(403, "Claude-account sign-in is limited to the studio's owner here. "
-                                 "Sign in with an Anthropic API key (sk-ant-api…) instead.")
+                                 "Sign in with an Anthropic API key (sk-ant-api…) instead. If you are the "
+                                 f"owner, add this token's workspace ID to the allowlist: {user_id}")
     if INVITE_CODE and not db.get(User, user_id) and not hmac.compare_digest(body.invite.strip(), INVITE_CODE):
         raise HTTPException(403, "This studio is invite-only. Enter the invite code you were given.")
     try:
