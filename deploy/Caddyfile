@@ -22,3 +22,8 @@
 		Referrer-Policy strict-origin-when-cross-origin
 	}
 }
+
+# www.<domain> -> <domain> (also gets its own certificate).
+www.{$PICASSO_DOMAIN} {
+	redir https://{$PICASSO_DOMAIN}{uri} permanent
+}
