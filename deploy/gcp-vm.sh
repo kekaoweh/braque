@@ -39,7 +39,8 @@ on_vm() { $G compute ssh "$NAME" --zone="$ZONE" --command="$1"; }
 write_env() {
   local env_file=$HERE/.env domain=${DOMAIN:-$(ip | tr . -).sslip.io}
   local invite=${INVITE_CODE:-$(grep -s '^PICASSO_INVITE_CODE=' "$env_file" | cut -d= -f2- || true)}
-  [ -n "$invite" ] || invite=$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 10)
+  # od reads a fixed number of bytes (a `tr </dev/urandom | head` pipe dies of SIGPIPE under pipefail).
+  [ -n "$invite" ] || invite=$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
   local allow=${CLAUDE_ACCOUNT_ALLOWLIST:-$(grep -s '^PICASSO_CLAUDE_ACCOUNT_ALLOWLIST=' "$env_file" | cut -d= -f2- || true)}
   local keys=$(grep -sE '^(PIXABAY_API_KEY|PEXELS_API_KEY)=' "$ROOT/backend/.env" || true)
   umask 077
