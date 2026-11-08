@@ -1,5 +1,5 @@
 [project]
-name = "picasso-backend"
+name = "braque-backend"
 version = "0.1.0"
 description = "Picasso API: FastAPI service that runs the Claude editing agent and renders videos with ffmpeg"
 requires-python = ">=3.12"
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/kekaoweh/picasso"
+Repository = "https://github.com/kekaoweh/braque"
 
 [tool.uv]
 package = false

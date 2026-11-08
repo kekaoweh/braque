@@ -67,9 +67,9 @@ export default function LoginPage() {
         </figure>
         <blockquote className="max-w-[420px]">
           <p className="text-[19px] leading-[1.4] font-medium tracking-[-0.015em] text-muted">
-            “I begin with an idea, and then it becomes something else.”
+            “The senses deform, the mind forms.”
           </p>
-          <footer className="label mt-2">Pablo Picasso</footer>
+          <footer className="label mt-2">Georges Braque</footer>
         </blockquote>
       </section>
 
@@ -85,7 +85,7 @@ export default function LoginPage() {
             <span className="text-muted">We&apos;ll make it.</span>
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted">
-            Describe it in a sentence or a page. Picasso researches the subject, finds licensed footage, writes the piece and cuts it, frame by frame.
+            Describe it in a sentence or a page. Braque researches the subject, finds licensed footage, writes the piece and cuts it, frame by frame.
           </p>
 
           <form onSubmit={submit} className="card mt-9 p-6 shadow-e3">

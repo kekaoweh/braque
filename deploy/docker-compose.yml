@@ -1,5 +1,5 @@
-# Picasso on one machine: Caddy (HTTPS) -> web (Next.js) and api (FastAPI + agent + ffmpeg).
-# Settings come from deploy/.env (see deploy/env.example). Data lives in the picasso-data volume.
+# Braque on one machine: Caddy (HTTPS) -> web (Next.js) and api (FastAPI + agent + ffmpeg).
+# Settings come from deploy/.env (see deploy/env.example). Data lives in the picasso-data volume (named before the rename; keep it so data persists).
 services:
   backend:
     build: ../backend

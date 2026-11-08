@@ -74,7 +74,7 @@ export default function SettingsPage() {
         <PageHeader
           eyebrow="Settings"
           title="Make the studio yours"
-          description="How Picasso looks, where new videos start, and how the editor works on them."
+          description="How Braque looks, where new videos start, and how the editor works on them."
           actions={<SaveState state={state} />}
         />
 

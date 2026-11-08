@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .config import font_path
 
 Kind = Literal["video", "image", "audio"]
-USER_AGENT = "Picasso/0.1 (https://github.com/kekaoweh/picasso; video editor)"
+USER_AGENT = "Braque/0.1 (https://github.com/kekaoweh/braque; video editor)"
 MAX_DOWNLOAD_BYTES = 700 * 1024 * 1024
 TIMEOUT = httpx.Timeout(20.0, read=60.0)
 
@@ -158,7 +158,7 @@ class Pixabay(Provider):
                 renditions = [v for v in (vids.get("large"), vids.get("medium"), vids.get("small")) if v and v.get("url")]
                 if not renditions:
                     continue
-                # Picasso renders at 1080p: take the smallest rendition that is still at least
+                # Braque renders at 1080p: take the smallest rendition that is still at least
                 # 1080p on its short side, so 4K sources download ~4x faster with no visible loss.
                 sharp = [v for v in renditions if min(v.get("width") or 0, v.get("height") or 0) >= 1080]
                 best = min(sharp, key=lambda v: v.get("width") or 0) if sharp else renditions[0]

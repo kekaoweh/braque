@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useId } from "react";
 
 /**
- * Picasso's mark: a cubist eye. A square plane split on the diagonal; the eye's outline
+ * Braque's mark: a cubist eye. A square plane split on the diagonal; the eye's outline
  * changes ink as it crosses the split, and the pupil sits slightly off its socket.
  */
 export function Logo({ className }: { className?: string }) {
@@ -32,7 +32,7 @@ export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={clsx("inline-flex items-center gap-2.5", className)}>
       <Logo className="size-7" />
-      <span className="text-[19px] leading-none font-semibold tracking-[-0.035em]">Picasso</span>
+      <span className="text-[19px] leading-none font-semibold tracking-[-0.035em]">Braque</span>
     </span>
   );
 }

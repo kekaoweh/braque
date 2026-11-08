@@ -1,15 +1,20 @@
-# Picasso
+# Braque
 
 Created and maintained by **Keka Oweh** ([github.com/kekaoweh](https://github.com/kekaoweh)).
+Live at **[braquestudio.com](https://braquestudio.com)** (invite-only).
 
 An AI video editor where an agent makes the whole video. You describe what you want and pick a
 style. The editor researches the subject, finds licensed footage on the web, studies it, writes a
 script, cuts a timeline and renders an MP4. Uploads are optional. Ask for changes in plain language
 to get a new version.
 
-- **Frontend:** Next.js 15 (App Router, Tailwind v4), Notion-style UI, `frontend/`
+- **Frontend:** Next.js 15 (App Router, Tailwind v4), `frontend/`
 - **Backend:** FastAPI + SQLite + ffmpeg, `backend/`
 - **Agent:** Claude Agent SDK (`claude-opus-5-5`), running on each user's own Claude credential
+
+Named for Georges Braque, who invented Cubism alongside Picasso (hence the cubist-eye mark). The
+project began as "Picasso"; internal names such as the `PICASSO_*` settings, the `picasso_session`
+cookie and the server's `picasso` VM and data volume keep that name so live sessions and data carry over.
 
 ## Run it
 
@@ -26,7 +31,7 @@ system `ffmpeg` on `PATH` is used instead when one exists).
 Users sign in with their Claude account:
 
 1. Run `claude setup-token` in a terminal (it opens the browser for Claude login).
-2. Paste the `sk-ant-oat…` token on the Picasso sign-in page.
+2. Paste the `sk-ant-oat…` token on the Braque sign-in page.
 
 The token is checked with one tiny request, encrypted (Fernet) and stored, then passed to the agent as
 `CLAUDE_CODE_OAUTH_TOKEN` for that user's runs only. Each user gets an isolated `CLAUDE_CONFIG_DIR`, and
@@ -146,7 +151,7 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 
 ## Deploying (Google Compute Engine)
 
-Picasso runs as three containers on one VM (`deploy/docker-compose.yml`): the FastAPI backend (agent,
+Braque runs as three containers on one VM (`deploy/docker-compose.yml`): the FastAPI backend (agent,
 ffmpeg, SQLite, files on a persistent volume), the Next.js frontend, and Caddy for automatic HTTPS.
 Caddy sends `/api/*` straight to the backend so large uploads and live progress skip the Next proxy.
 A VM suits this app better than Cloud Run: runs take minutes, rendering needs steady CPU, and the
@@ -179,5 +184,5 @@ Settings → Account), Anthropic API keys for anyone with the invite code.
 
 ## Author
 
-**Keka Oweh** ([github.com/kekaoweh](https://github.com/kekaoweh)). Picasso is designed, built and owned by
+**Keka Oweh** ([github.com/kekaoweh](https://github.com/kekaoweh)). Braque is designed, built and owned by
 Keka Oweh.

@@ -47,7 +47,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="flex h-full w-[248px] flex-col">
       <div className="flex h-14 items-center justify-between px-4">
-        <Link href="/" onClick={onClose} aria-label="Picasso home" className="rounded-control px-1 py-0.5">
+        <Link href="/" onClick={onClose} aria-label="Braque home" className="rounded-control px-1 py-0.5">
           <Wordmark />
         </Link>
         {onClose && (

@@ -7,8 +7,8 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "Picasso — a studio for moving pictures",
-  description: "Describe a film, bring your materials. Picasso studies them, writes the piece and cuts it.",
+  title: "Braque — a studio for moving pictures",
+  description: "Describe a film and Braque researches it, finds licensed footage, writes it and cuts it.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

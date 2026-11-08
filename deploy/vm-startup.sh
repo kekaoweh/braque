@@ -5,7 +5,7 @@ set -euo pipefail
 exec > >(tee -a /var/log/picasso-startup.log) 2>&1
 echo "== picasso startup $(date -Is)"
 
-REPO=https://github.com/kekaoweh/picasso.git
+REPO=https://github.com/kekaoweh/braque.git
 DIR=/opt/picasso
 
 if [ ! -f /swapfile ]; then

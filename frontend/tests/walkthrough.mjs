@@ -1,4 +1,4 @@
-// End-to-end walkthrough of Picasso in a real (headless) Chrome.
+// End-to-end walkthrough of Braque in a real (headless) Chrome.
 //
 //   cookie=$(cd ../backend && uv run python scripts/dev_session.py create)
 //   PICASSO_TEST_COOKIE=$cookie npm run test:e2e
