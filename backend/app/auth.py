@@ -108,12 +108,16 @@ async def login(body: LoginIn, response: Response, db: Session = Depends(get_ses
     owner = False
     # Gatekeeping happens before the token is checked with Claude, so refusals are instant.
     if kind == "oauth" and claude_accounts_restricted() and user_id not in CLAUDE_ACCOUNT_ALLOWLIST:
-        code = body.owner_code.strip()
-        if not (OWNER_CODE and code and hmac.compare_digest(code, OWNER_CODE)):
+        code = "".join(body.owner_code.split()).strip(_FRAME)
+        if not OWNER_CODE or not code:
             raise HTTPException(403, "Claude-account sign-in is for the studio's owner"
-                                     + (" and needs the owner code." if OWNER_CODE else ".")
+                                     + (". Enter the owner code in step 3." if OWNER_CODE else ".")
                                      + " Everyone else: sign in with an Anthropic API key (sk-ant-api…) "
                                        "from console.anthropic.com.")
+        if not hmac.compare_digest(code, OWNER_CODE):
+            raise HTTPException(403, f"That owner code doesn't match (you entered {len(code)} characters, "
+                                     f"starting “{code[:3]}…”). Check it against deploy/.env "
+                                     "(PICASSO_OWNER_CODE) and try again.")
         # The owner's tokens change (each `claude setup-token` makes a new one); their workspace doesn't.
         owner = True
         user_id = OWNER_WORKSPACE or user_id

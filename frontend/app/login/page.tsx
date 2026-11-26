@@ -2,13 +2,16 @@
 
 import { ArrowRight, Check, Copy, ExternalLink, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { StudyPlate } from "@/components/artwork";
 import { Wordmark } from "@/components/logo";
 import { Button, ErrorNote, StepNumber } from "@/components/ui";
 import { Access, api } from "@/lib/api";
 
 const COMMAND = "claude setup-token";
+
+/** Codes copied from a chat or a file can pick up spaces, quotes or backticks. */
+const cleanCode = (raw: string) => raw.replace(/\s+/g, "").replace(/^["'`]+|["'`]+$/g, "");
 
 // Whitespace, quotes and the box-drawing borders terminals draw around output.
 const FRAME = /^[\s"'`|\u2500-\u257f]+|[\s"'`|\u2500-\u257f]+$/g;
@@ -43,6 +46,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
   const [ownerCode, setOwnerCode] = useState("");
+  const ownerField = useRef<HTMLInputElement>(null);
   const [access, setAccess] = useState<Access>({ invite_required: false, claude_account_restricted: false, owner_code_enabled: false });
   // "key": an Anthropic API key (anyone). "claude": a Claude-account token from `claude setup-token`
   // (the owner, when the server restricts it).
@@ -81,10 +85,15 @@ export default function LoginPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!cleaned || busy) return;
+    if (askOwnerCode && !cleanCode(ownerCode)) {
+      setError("Enter your owner code in step 3. It's PICASSO_OWNER_CODE in deploy/.env on your Mac.");
+      ownerField.current?.focus();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await api.login(cleaned, name.trim(), askInvite ? invite.trim() : "", askOwnerCode ? ownerCode.trim() : "");
+      await api.login(cleaned, name.trim(), askInvite ? invite.trim() : "", askOwnerCode ? cleanCode(ownerCode) : "");
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -228,13 +237,14 @@ export default function LoginPage() {
               {askOwnerCode && (
                 <Step n={3} title="Owner code">
                   <input
-                    type="password"
+                    ref={ownerField}
                     value={ownerCode}
                     onChange={(e) => setOwnerCode(e.target.value)}
                     placeholder="The studio owner's private code"
+                    spellCheck={false}
                     autoComplete="off"
                     aria-label="Owner code"
-                    className="field mt-2 h-10 w-full px-3.5 text-[14px]"
+                    className="field mt-2 h-10 w-full px-3.5 font-mono text-[13px]"
                   />
                 </Step>
               )}
