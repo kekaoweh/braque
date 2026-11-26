@@ -21,9 +21,14 @@ def new_id(prefix: str) -> str:
 class User(SQLModel, table=True):
     id: str = Field(primary_key=True)
     name: str
-    token_kind: str  # "oauth" (claude setup-token) or "api_key"
-    token_enc: str
-    token_hint: str
+    # Email accounts sign in with a password; key accounts with the key itself (see app/auth.py).
+    email: Optional[str] = Field(default=None, index=True)
+    password_hash: str = ""
+    # The user's own Claude credential, if any: "oauth" (claude setup-token) or "api_key".
+    # Email accounts without one run on the studio key (app/accounts.py).
+    token_kind: str = ""
+    token_enc: str = ""
+    token_hint: str = ""
     settings_json: str = ""  # see app/settings.py
     created_at: datetime = Field(default_factory=now)
 
@@ -103,6 +108,8 @@ class Run(SQLModel, table=True):
     duration: Optional[float] = None
     cost_usd: Optional[float] = None
     in_cloud: bool = False  # render mirrored to Tigris
+    billed_to: str = ""  # "own" (the user's credential) or "studio" (the studio key); "" for re-renders
+    share_id: Optional[str] = Field(default=None, index=True)  # public watch link /s/<share_id>
     created_at: datetime = Field(default_factory=now)
     finished_at: Optional[datetime] = None
 

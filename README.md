@@ -28,20 +28,24 @@ system `ffmpeg` on `PATH` is used instead when one exists).
 
 ## Signing in
 
-Users sign in with their Claude account:
+| Who | How | Whose AI usage |
+|---|---|---|
+| **Customers** | **Email and password** (plus the invite code on an invite-only server) | The **studio key**, up to a monthly limit each (default $10), or their own API key added in Settings |
+| **People with an Anthropic API key** | "Have an Anthropic API key? Use it instead" | Their own key, no limit |
+| **The site admin** (whoever runs the server) | "Site admin": a Claude-account token from `claude setup-token`, plus the admin code | The admin's Claude plan |
+| **Clients who only watch** | Nothing: a **share link** (`/s/…`) from the editor's Share button | None |
 
-1. Run `claude setup-token` in a terminal (it opens the browser for Claude login).
-2. Paste the `sk-ant-oat…` token on the Braque sign-in page.
+- Passwords are hashed with scrypt; sign-in attempts are throttled (8 failures per email per 15 min).
+- Keys and tokens are encrypted (Fernet) and used only for that user's runs, each in an isolated
+  `CLAUDE_CONFIG_DIR`; the server strips any `ANTHROPIC_*` credentials from its own environment.
+- Every run records who paid (`billed_to`: `own` or `studio`) and its cost, which is how the monthly
+  limit is enforced; Settings shows customers their meter and the admin everyone's usage.
+- The sign-in page finds the key inside whatever is pasted (terminal output, borders, `export …=`).
 
-The token is checked with one tiny request, encrypted (Fernet) and stored, then passed to the agent as
-`CLAUDE_CODE_OAUTH_TOKEN` for that user's runs only. Each user gets an isolated `CLAUDE_CONFIG_DIR`, and
-the server strips any `ANTHROPIC_*` credentials from its own environment. A run can never fall back
-to a different account. Anthropic API keys (`sk-ant-api…`) are accepted at the same screen.
-
-> **Before you launch publicly:** Anthropic's Agent SDK terms say third-party products may not offer
-> claude.ai login or subscription rate limits to their users unless Anthropic has approved it
-> ([docs](https://code.claude.com/docs/en/agent-sdk/overview)). Using your own token yourself is fine.
-> For other users, get approval first, or switch them to API keys (already supported).
+> **Anthropic's terms:** third-party products may not offer claude.ai login or subscription rate limits
+> to their users unless Anthropic has approved it
+> ([docs](https://code.claude.com/docs/en/agent-sdk/overview)). So Claude-account sign-in is only for
+> the site admin, and the studio key must be an API key; the server ignores a Claude-account token there.
 
 ## Footage from the web
 
@@ -148,6 +152,8 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 | `PICASSO_BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | Where Next proxies `/api` (fixed at build time) |
 | `PICASSO_CLAUDE_ACCOUNT_ALLOWLIST` | empty (anyone) | Workspace ids allowed to sign in with a Claude-account token; others must use API keys |
 | `PICASSO_INVITE_CODE` | empty (open) | Required to create a new workspace; returning users don't need it |
+| `PICASSO_STUDIO_API_KEY` | empty (off) | The admin's Anthropic API key that pays for customers without their own key |
+| `PICASSO_STUDIO_MONTHLY_LIMIT_USD` | `10` | Studio-key spending allowed per customer per calendar month |
 | `PICASSO_OWNER_CODE` | empty | The owner's private code: with it, any Claude-account token signs in to the owner's workspace (`PICASSO_OWNER_WORKSPACE`, default the first allowlist entry) |
 | `TIGRIS_ACCESS_KEY_ID` / `TIGRIS_SECRET_ACCESS_KEY` / `TIGRIS_BUCKET` | empty (local disk only) | Mirror media to Tigris; see Media storage |
 | `TIGRIS_ENDPOINT` | `https://t3.storage.dev` | S3 endpoint (`TIGRIS_ADDRESSING=path` for local S3 stand-ins) |

@@ -49,6 +49,11 @@ INVITE_CODE = os.environ.get("PICASSO_INVITE_CODE", "").strip()
 # The owner's private code. With it, a Claude-account token from any `claude setup-token` run signs
 # in to the owner's workspace (the first allowlist entry), so a fresh token never locks the owner out.
 OWNER_CODE = os.environ.get("PICASSO_OWNER_CODE", "").strip()
+# The studio key: the site admin's Anthropic API key, used for customers who have no key of their own,
+# up to a monthly allowance each. It must be an API key: running other people's videos on the admin's
+# Claude subscription is what Anthropic's terms rule out, so a Claude-account token is ignored here.
+STUDIO_API_KEY = os.environ.get("PICASSO_STUDIO_API_KEY", "").strip()
+STUDIO_MONTHLY_LIMIT_USD = float(os.environ.get("PICASSO_STUDIO_MONTHLY_LIMIT_USD", "10") or 0)
 OWNER_WORKSPACE = os.environ.get("PICASSO_OWNER_WORKSPACE", "").strip() or next(iter(sorted(CLAUDE_ACCOUNT_ALLOWLIST)), "")
 
 # Each user's agents must run on that user's own Claude credential, never on

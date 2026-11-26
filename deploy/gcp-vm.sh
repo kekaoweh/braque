@@ -50,13 +50,16 @@ write_env() {
   local owner=${OWNER_CODE:-$(saved PICASSO_OWNER_CODE)}
   [ -n "$owner" ] || owner=$(random_code 12)
   local allow=${CLAUDE_ACCOUNT_ALLOWLIST:-$(saved PICASSO_CLAUDE_ACCOUNT_ALLOWLIST)}
+  # The studio key (an Anthropic API key) pays for customers without their own; add it to deploy/.env.
+  local studio_key=$(saved PICASSO_STUDIO_API_KEY)
+  local studio_limit=$(saved PICASSO_STUDIO_MONTHLY_LIMIT_USD)
   # Footage keys always; Tigris only on request (WITH_TIGRIS=1), once its key can reach the bucket.
   local pattern='PIXABAY_API_KEY|PEXELS_API_KEY'
   [ "${WITH_TIGRIS:-0}" = 1 ] && pattern="$pattern|TIGRIS_[A-Z_]+"
   local keys=$(grep -sE "^($pattern)=" "$ROOT/backend/.env" || true)
   umask 077
-  printf 'PICASSO_DOMAIN=%s\nPICASSO_CLAUDE_ACCOUNT_ALLOWLIST=%s\nPICASSO_INVITE_CODE=%s\nPICASSO_OWNER_CODE=%s\n%s\n' \
-    "$domain" "$allow" "$invite" "$owner" "$keys" > "$env_file"
+  printf 'PICASSO_DOMAIN=%s\nPICASSO_CLAUDE_ACCOUNT_ALLOWLIST=%s\nPICASSO_INVITE_CODE=%s\nPICASSO_OWNER_CODE=%s\nPICASSO_STUDIO_API_KEY=%s\nPICASSO_STUDIO_MONTHLY_LIMIT_USD=%s\n%s\n' \
+    "$domain" "$allow" "$invite" "$owner" "$studio_key" "${studio_limit:-10}" "$keys" > "$env_file"
   echo "Settings written to deploy/.env (domain $domain; invite and owner codes are in that file)"
 }
 

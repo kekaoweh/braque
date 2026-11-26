@@ -1,13 +1,13 @@
 "use client";
 
 import clsx from "clsx";
-import { Check, LogOut, Monitor, Moon, ShieldOff, Sun } from "lucide-react";
+import { Check, KeyRound, LogOut, Monitor, Moon, ShieldOff, Sun } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { useApp } from "@/components/app-context";
 import { AspectPicker, LengthPicker, StylePicker } from "@/components/pickers";
 import { Badge, Button, ErrorNote, PageHeader, SectionHeader, Segmented, Switch, useDebouncedCallback } from "@/components/ui";
 import { setMotion, setTheme, Theme, useAppearance } from "@/lib/appearance";
-import { api, FootageSource, Settings } from "@/lib/api";
+import { Account, AdminUser, api, FootageSource, Settings } from "@/lib/api";
 
 const LANGUAGES = ["English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch", "Japanese", "Korean", "Chinese", "Hindi", "Arabic"];
 
@@ -17,6 +17,7 @@ const SECTIONS = [
   ["editor", "The editor"],
   ["video", "The finished video"],
   ["account", "Account"],
+  ["admin", "Site admin"],
 ] as const;
 
 export default function SettingsPage() {
@@ -60,7 +61,8 @@ export default function SettingsPage() {
     window.location.href = "/login";
   };
   const forget = async () => {
-    if (!window.confirm("Sign out everywhere and delete your stored Claude token? Your videos stay.")) return;
+    const what = user.method === "email" ? "Sign out on every device and remove your saved API key, if any?" : "Sign out everywhere and delete your stored key? Your videos stay.";
+    if (!window.confirm(what)) return;
     await api.forget();
     window.location.href = "/login";
   };
@@ -81,7 +83,7 @@ export default function SettingsPage() {
         <div className="mt-10 grid gap-8 lg:grid-cols-[180px_1fr]">
           <nav className="hidden lg:block" aria-label="Settings sections">
             <ul className="sticky top-0 space-y-0.5">
-              {SECTIONS.map(([id, label]) => (
+              {SECTIONS.filter(([id]) => id !== "admin" || user.is_admin).map(([id, label]) => (
                 <li key={id}>
                   <a href={`#${id}`} className="block rounded-control px-2.5 py-1.5 text-[13.5px] text-muted transition-colors hover:bg-hover hover:text-fg">
                     {label}
@@ -209,17 +211,25 @@ export default function SettingsPage() {
                   className="field h-9 w-full px-3 text-[13.5px] sm:w-52"
                 />
               </Row>
-              <Row label="Connected to Claude" hint={user.token_kind === "oauth" ? "With a Claude account token (claude setup-token)." : "With an Anthropic API key."}>
-                <span className="font-mono text-[12.5px] text-muted">{user.token_hint}</span>
+              <Row
+                label="Signed in with"
+                hint={user.method === "email" ? "Email and password." : user.method === "claude" ? "A Claude account (site admin)." : "An Anthropic API key."}
+              >
+                <span className="text-[13px] text-muted">
+                  {user.email ?? <span className="font-mono text-[12.5px]">{user.token_hint}</span>}
+                </span>
               </Row>
-              <Row label="Workspace ID" hint="Identifies this workspace, e.g. for a server's Claude-account allowlist.">
-                <span className="font-mono text-[12.5px] text-muted select-all">{user.id}</span>
-              </Row>
-              <div className="flex flex-wrap gap-2 pt-4">
+              <VideoCredit />
+              {user.method === "email" && <PasswordRow />}
+              <div className="flex flex-wrap gap-2 py-4">
                 <Button onClick={signOut} icon={<LogOut className="size-3.5" strokeWidth={1.75} />}>Sign out</Button>
-                <Button variant="danger" onClick={forget} icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />}>Disconnect Claude</Button>
+                <Button variant="danger" onClick={forget} icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />}>
+                  {user.method === "email" ? "Sign out everywhere" : "Disconnect and sign out everywhere"}
+                </Button>
               </div>
             </Card>
+
+            {user.is_admin && <AdminCard />}
           </div>
         </div>
       </div>
@@ -257,5 +267,196 @@ function SaveState({ state }: { state: "idle" | "saving" | "saved" | "error" }) 
       {state === "saved" && <Check className="size-3.5 text-sage" strokeWidth={2} />}
       {state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Couldn't save. Try again."}
     </span>
+  );
+}
+
+/**
+ * Who pays for this person's videos: their own API key, or the studio's monthly credit (with a
+ * meter). Lets them add, replace or remove their own key.
+ */
+function VideoCredit() {
+  const { user, setUser } = useApp();
+  const [account, setAccount] = useState<Account | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => api.account().then(setAccount).catch(() => {});
+  useEffect(() => { load(); }, [user.token_kind]);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setUser(await api.setKey(key));
+      setKey("");
+      setAdding(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add the key");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!window.confirm("Remove your API key? Your videos will use the studio's monthly credit instead, if it offers any.")) return;
+    setUser(await api.removeKey());
+  };
+
+  if (!account) return null;
+  const own = account.payer === "own";
+  const pct = account.studio_limit ? Math.min(100, (account.studio_spent / account.studio_limit) * 100) : 0;
+  const resets = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+
+  return (
+    <div className="py-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+        <div className="min-w-0">
+          <div className="text-[14px] font-medium">Video credit</div>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-faint">
+            {own
+              ? user.token_kind === "oauth" ? "Your videos run on your Claude plan." : "Your videos run on your own Anthropic API key, with no limit from this studio."
+              : account.studio_credit
+                ? `Your videos run on the studio's credit: $${account.studio_limit} a month, renewing ${resets}.`
+                : "Add an Anthropic API key to start making videos."}
+          </p>
+        </div>
+        {own && user.email ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="font-mono text-[12.5px] text-muted">{user.token_hint}</span>
+            <Button size="sm" variant="ghost" onClick={remove}>Remove</Button>
+          </div>
+        ) : !own && !adding ? (
+          <Button size="sm" className="shrink-0" onClick={() => setAdding(true)} icon={<KeyRound className="size-3.5" strokeWidth={1.75} />}>
+            Add your API key
+          </Button>
+        ) : null}
+      </div>
+      {!own && account.studio_credit && (
+        <div className="mt-3">
+          <div className="h-1.5 overflow-hidden rounded-full bg-active">
+            <div className={clsx("h-full rounded-full", pct >= 100 ? "bg-brick" : "bg-accent")} style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-1.5 text-[12px] text-faint tabular-nums">
+            ${account.studio_spent.toFixed(2)} of ${account.studio_limit.toFixed(2)} used this month
+          </p>
+        </div>
+      )}
+      {adding && (
+        <div className="mt-3 rounded-control border border-line bg-bg p-3.5">
+          <p className="text-[12.5px] leading-relaxed text-muted">
+            Create a key at{" "}
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">console.anthropic.com</a>{" "}
+            (add a few dollars of credit under Billing first), then paste it here.
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="sk-ant-api03-…"
+              aria-label="Your API key"
+              autoComplete="off"
+              className="field h-9 min-w-0 flex-1 px-3 font-mono text-[13px]"
+            />
+            <Button size="sm" className="h-9" variant="primary" onClick={save} loading={busy} disabled={!key.trim()}>Save</Button>
+            <Button size="sm" className="h-9" variant="ghost" onClick={() => { setAdding(false); setError(null); }}>Cancel</Button>
+          </div>
+          {error && <ErrorNote className="mt-2.5">{error}</ErrorNote>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PasswordRow() {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    setState("busy");
+    setError(null);
+    try {
+      await api.changePassword(current, next);
+      setState("done");
+      setOpen(false);
+      setCurrent("");
+      setNext("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't change it");
+      setState("idle");
+    }
+  };
+  return (
+    <div className="py-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[14px] font-medium">Password</div>
+          {state === "done" && <p className="mt-0.5 text-[13px] text-sage">Changed.</p>}
+        </div>
+        {!open && <Button size="sm" onClick={() => { setOpen(true); setState("idle"); }}>Change password</Button>}
+      </div>
+      {open && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" autoComplete="current-password" aria-label="Current password" className="field h-9 px-3 text-[13.5px]" />
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New (8+ characters)" autoComplete="new-password" aria-label="New password" className="field h-9 px-3 text-[13.5px]" />
+          <Button size="sm" className="h-9" variant="primary" onClick={save} loading={state === "busy"} disabled={!current || next.length < 8}>Save</Button>
+          <Button size="sm" className="h-9" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          {error && <ErrorNote className="sm:col-span-4">{error}</ErrorNote>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The site admin's view: everyone with a studio here, how they pay, and studio credit used. */
+function AdminCard() {
+  const [users, setUsers] = useState<AdminUser[] | null>(null);
+  useEffect(() => {
+    api.adminUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
+  const total = (users ?? []).reduce((sum, u) => sum + u.studio_spent, 0);
+  return (
+    <Card id="admin" title="Site admin" description="Everyone with a studio on this site. Only you can see this.">
+      <div className="py-4">
+        {!users ? (
+          <p className="text-[13px] text-faint">Loading…</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-card border border-line">
+              <table className="w-full text-left text-[13px]">
+                <thead className="bg-bg text-[12px] text-faint">
+                  <tr>
+                    <th className="px-3.5 py-2 font-medium">Studio</th>
+                    <th className="px-3.5 py-2 font-medium">Pays with</th>
+                    <th className="px-3.5 py-2 text-right font-medium">Videos</th>
+                    <th className="px-3.5 py-2 text-right font-medium">Studio credit this month</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td className="px-3.5 py-2.5">
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-[12px] text-faint">{u.email ?? (u.method === "claude" ? "Claude account" : "API key")}</div>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-muted">{u.pays}</td>
+                      <td className="px-3.5 py-2.5 text-right tabular-nums">{u.videos}</td>
+                      <td className="px-3.5 py-2.5 text-right tabular-nums">${u.studio_spent.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2.5 text-[12.5px] text-faint">
+              Studio credit used by everyone this month: <span className="tabular-nums">${total.toFixed(2)}</span>. The key and
+              the monthly limit per person are PICASSO_STUDIO_API_KEY and PICASSO_STUDIO_MONTHLY_LIMIT_USD on the server.
+            </p>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }

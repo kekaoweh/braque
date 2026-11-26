@@ -96,9 +96,12 @@ Pexels, Wikimedia Commons, NASA" (the app keeps the full per-clip credits).
 - Use each clip's `note` field to say briefly why it is there; the creator sees these notes."""
 
 
-def credential_env(user: User) -> dict[str, str]:
-    token = fernet.decrypt(user.token_enc.encode()).decode()
-    return credential_env_for(token, user.token_kind, user.id)
+def credential_env(user: User, payer: str = "own") -> dict[str, str]:
+    """Environment for a run paid by `payer`: the user's own credential, or the studio key."""
+    from .accounts import credential  # accounts imports db models; keep agent importable on its own
+
+    token, kind = credential(user, payer)
+    return credential_env_for(token, kind, user.id)
 
 
 def credential_env_for(token: str, kind: str, user_id: str) -> dict[str, str]:
@@ -415,14 +418,14 @@ def build_prompt(project: Project, style: Style | None, instruction: str, notes:
 
 
 async def run_agent(user: User, project: Project, style: Style | None, instruction: str,
-                    emit: Emit) -> float | None:
+                    emit: Emit, payer: str = "own") -> float | None:
     orientation = {"9:16": "portrait", "4:5": "portrait", "1:1": "square"}.get(project.aspect, "landscape")
     prefs = user_settings.load(user)
     server, tool_names, cancel_downloads = build_studio_server(project.id, user.id, orientation, prefs.libraries_off)
     cwd = WORK_DIR / project.id
     cwd.mkdir(parents=True, exist_ok=True)
     options = base_options(
-        credential_env(user), cwd, web_search=prefs.web_research,
+        credential_env(user, payer), cwd, web_search=prefs.web_research,
         model=prefs.model,
         system_prompt=SYSTEM_PROMPT,
         mcp_servers={"studio": server},

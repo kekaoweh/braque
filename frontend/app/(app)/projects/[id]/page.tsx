@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Check, ChevronRight, Copy, Download, MoreHorizontal, PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
+import { Check, ChevronRight, Copy, Download, Link2, Link2Off, MoreHorizontal, PanelRightClose, PanelRightOpen, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -145,6 +145,9 @@ export default function ProjectPage() {
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
             {runs[0] && !(isDesktop && panelOpen) && <StatusPill status={runs[0].status} className="mr-1 hidden sm:inline-flex" />}
+            {selectedRun && (
+              <ShareMenu run={selectedRun} onChange={(r) => setRuns((rs) => rs.map((x) => (x.id === r.id ? r : x)))} />
+            )}
             {selectedRun && (
               <a href={media.video(selectedRun.id, true)} className="hidden sm:block">
                 <Button size="sm" icon={<Download className="size-3.5" strokeWidth={1.75} />}>Download</Button>
@@ -399,5 +402,87 @@ function SectionBar({ sections, scroller }: { sections: SectionLink[]; scroller:
         </div>
       </nav>
     </div>
+  );
+}
+
+/**
+ * Share a finished version: one click makes a private watch link (/s/…) and copies it. Anyone with
+ * the link can watch and download that version without an account, until sharing is turned off.
+ */
+function ShareMenu({ run, onChange }: { run: Run; onChange: (r: Run) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const url = run.share_id ? `${window.location.origin}/s/${run.share_id}` : "";
+
+  const copy = async (link: string) => {
+    await navigator.clipboard.writeText(link).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  const share = async () => {
+    setBusy(true);
+    try {
+      const r = await api.share(run.id);
+      onChange(r);
+      await copy(`${window.location.origin}/s/${r.share_id}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const stop = async () => {
+    setBusy(true);
+    try {
+      onChange(await api.unshare(run.id));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Menu
+      align="right"
+      width="w-80"
+      trigger={({ open, toggle }) => (
+        <Button size="sm" variant={run.share_id ? "secondary" : "primary"} onClick={toggle} aria-expanded={open}
+          icon={<Share2 className="size-3.5" strokeWidth={1.75} />}>
+          {run.share_id ? "Shared" : "Share"}
+        </Button>
+      )}
+    >
+      {() => (
+        <div className="p-2.5">
+          {run.share_id ? (
+            <>
+              <p className="text-[13.5px] font-medium">Anyone with this link can watch</p>
+              <p className="mt-0.5 text-[12.5px] text-faint">No account needed. They can also download it.</p>
+              <div className="field mt-3 flex items-center gap-2 bg-bg py-1 pr-1 pl-3 shadow-none">
+                <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-muted">{url}</span>
+                <Button size="sm" onClick={() => copy(url)} icon={copied ? <Check className="size-3.5 text-sage" strokeWidth={2} /> : <Copy className="size-3.5" strokeWidth={1.75} />}>
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between">
+                <a href={url} target="_blank" rel="noreferrer" className="text-[12.5px] text-muted underline-offset-4 hover:text-fg hover:underline">
+                  Open the page
+                </a>
+                <Button size="sm" variant="danger" onClick={stop} loading={busy} icon={<Link2Off className="size-3.5" strokeWidth={1.75} />}>
+                  Stop sharing
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[13.5px] font-medium">Share this version</p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-faint">
+                Creates a private link anyone can watch without signing in. You can turn it off anytime.
+              </p>
+              <Button className="mt-3 w-full" variant="primary" onClick={share} loading={busy} icon={<Link2 className="size-3.5" strokeWidth={1.75} />}>
+                Create link and copy it
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+    </Menu>
   );
 }

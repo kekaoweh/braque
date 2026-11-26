@@ -57,7 +57,7 @@ async def _execute(run_id: str) -> None:
         if run.mode == "agent":
             await _status(run_id, "planning")
             cost = await run_agent(user, project, style, run.instruction,
-                                   lambda t, d: emit(run_id, t, d))
+                                   lambda t, d: emit(run_id, t, d), payer=run.billed_to or "own")
             _set(run_id, cost_usd=cost)
 
         with Session(engine) as s:

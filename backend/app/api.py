@@ -1,5 +1,6 @@
 import asyncio
 import json
+import secrets
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, col, or_, select
 from sse_starlette.sse import EventSourceResponse
 
-from . import pipeline, sources, storage
+from . import accounts, pipeline, sources, storage
 from . import settings as user_settings
 from .auth import current_user
 from .config import THUMBS_DIR, UPLOADS_DIR
@@ -57,6 +58,8 @@ class RunOut(BaseModel):
     has_video: bool
     duration: Optional[float]
     cost_usd: Optional[float]
+    billed_to: str
+    share_id: Optional[str]
     created_at: datetime
     finished_at: Optional[datetime]
 
@@ -108,8 +111,8 @@ def asset_out(a: Asset) -> AssetOut:
 def run_out(r: Run) -> RunOut:
     return RunOut(id=r.id, project_id=r.project_id, instruction=r.instruction, mode=r.mode,
                   status=r.status, error=r.error, has_video=pipeline.has_video(r),
-                  duration=r.duration, cost_usd=r.cost_usd, created_at=r.created_at,
-                  finished_at=r.finished_at)
+                  duration=r.duration, cost_usd=r.cost_usd, billed_to=r.billed_to, share_id=r.share_id,
+                  created_at=r.created_at, finished_at=r.finished_at)
 
 
 def style_out(s: Style) -> StyleOut:
@@ -454,8 +457,12 @@ class RunCreate(BaseModel):
 async def create_run(project_id: str, body: RunCreate, user: User = Depends(current_user),
                db: Session = Depends(get_session)):
     p = own_project(project_id, user, db)
-    if not user.token_enc:
-        raise HTTPException(401, "Reconnect your Claude account first")
+    payer = ""
+    if body.mode == "agent":
+        try:
+            payer = accounts.payer_for(db, user)
+        except accounts.CredentialError as exc:
+            raise HTTPException(402, str(exc)) from exc
     if p.latest_run_id:
         last = db.get(Run, p.latest_run_id)
         if last and last.status not in pipeline.TERMINAL:
@@ -464,7 +471,8 @@ async def create_run(project_id: str, body: RunCreate, user: User = Depends(curr
         raise HTTPException(400, "There is no timeline to render yet")
     if body.mode == "agent" and not p.prompt.strip() and not body.instruction.strip():
         raise HTTPException(400, "Describe the video you want first")
-    run = Run(project_id=p.id, user_id=user.id, instruction=body.instruction.strip(), mode=body.mode)
+    run = Run(project_id=p.id, user_id=user.id, instruction=body.instruction.strip(), mode=body.mode,
+              billed_to=payer)
     db.add(run)
     p.latest_run_id = run.id
     p.updated_at = now()
@@ -526,7 +534,10 @@ async def run_events(run_id: str, request: Request, after: int = 0,
 @router.get("/runs/{run_id}/video")
 def run_video(run_id: str, download: bool = False, user: User = Depends(current_user),
               db: Session = Depends(get_session)):
-    r = own_run(run_id, user, db)
+    return _video_response(own_run(run_id, user, db), download, db)
+
+
+def _video_response(r: Run, download: bool, db: Session):
     if not pipeline.has_video(r):
         raise HTTPException(404, "No video for this run")
     p = db.get(Project, r.project_id)
@@ -536,6 +547,62 @@ def run_video(run_id: str, download: bool = False, user: User = Depends(current_
     f = pipeline.output_file(r)
     return FileResponse(f, media_type="video/mp4", filename=f"{safe}.mp4",
                         content_disposition_type="attachment" if download else "inline")
+
+
+# ---------------------------------------------------------------------------
+# Share links: anyone with /s/<share_id> can watch (and download) that one version, no account needed.
+
+
+@router.post("/runs/{run_id}/share", response_model=RunOut)
+def share_run(run_id: str, user: User = Depends(current_user), db: Session = Depends(get_session)):
+    r = own_run(run_id, user, db)
+    if not pipeline.has_video(r):
+        raise HTTPException(400, "Only a finished video can be shared")
+    if not r.share_id:
+        r.share_id = secrets.token_urlsafe(12)  # 96 random bits: unguessable
+        db.add(r)
+        db.commit()
+        db.refresh(r)
+    return run_out(r)
+
+
+@router.delete("/runs/{run_id}/share", response_model=RunOut)
+def unshare_run(run_id: str, user: User = Depends(current_user), db: Session = Depends(get_session)):
+    r = own_run(run_id, user, db)
+    r.share_id = None
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return run_out(r)
+
+
+class SharedVideo(BaseModel):
+    title: str
+    studio: str
+    duration: Optional[float]
+    aspect: str
+    created_at: datetime
+
+
+def _shared(share_id: str, db: Session) -> Run:
+    r = db.exec(select(Run).where(Run.share_id == share_id)).first() if share_id else None
+    if not r or not pipeline.has_video(r):
+        raise HTTPException(404, "This link doesn't exist or was turned off")
+    return r
+
+
+@router.get("/share/{share_id}", response_model=SharedVideo)
+def shared_video(share_id: str, db: Session = Depends(get_session)):
+    r = _shared(share_id, db)
+    p = db.get(Project, r.project_id)
+    owner = db.get(User, r.user_id)
+    return SharedVideo(title=(p.name if p else "") or "Untitled", studio=owner.name if owner else "",
+                       duration=r.duration, aspect=p.aspect if p else "16:9", created_at=r.created_at)
+
+
+@router.get("/share/{share_id}/video")
+def shared_video_file(share_id: str, download: bool = False, db: Session = Depends(get_session)):
+    return _video_response(_shared(share_id, db), download, db)
 
 
 @router.get("/sources")

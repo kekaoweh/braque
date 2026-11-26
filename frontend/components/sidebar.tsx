@@ -39,7 +39,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   const forget = async () => {
-    if (!window.confirm("Sign out everywhere and delete your stored Claude token? Your videos stay.")) return;
+    if (!window.confirm("Sign out on every device and remove your saved key? Your videos stay.")) return;
     await api.forget();
     window.location.href = "/login";
   };
@@ -134,7 +134,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium">{user.name}</span>
-                <span className="block text-[11.5px] text-faint">{user.token_kind === "oauth" ? "Claude account" : "API key"}</span>
+                <span className="block text-[11.5px] text-faint">{user.is_admin ? "Site admin" : user.email ?? "API key"}</span>
               </span>
               <ChevronsUpDown className="size-3.5 text-faint" strokeWidth={1.75} />
             </button>
@@ -142,7 +142,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         >
           {(close) => (
             <>
-              <MenuLabel>Connected as <span className="font-mono text-muted">{user.token_hint}</span></MenuLabel>
+              <MenuLabel>Signed in as <span className="text-muted">{user.email ?? user.token_hint}</span></MenuLabel>
               <div className="my-1 h-px bg-line" />
               <MenuItem icon={<Settings className="size-3.5" strokeWidth={1.75} />} onClick={() => { close(); onClose?.(); router.push("/settings"); }}>
                 Settings
@@ -151,7 +151,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 Sign out
               </MenuItem>
               <MenuItem icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />} onClick={forget} danger>
-                Disconnect Claude
+                Sign out everywhere
               </MenuItem>
             </>
           )}

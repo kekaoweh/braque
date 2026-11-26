@@ -40,7 +40,8 @@ def create() -> None:
 
 def cleanup() -> None:
     with Session(engine) as s:
-        users = s.exec(select(User).where(User.id.startswith(PREFIX))).all()
+        # Walkthrough users: the cookie-based one, plus email sign-ups at the reserved @test.braque domain.
+        users = s.exec(select(User).where(User.id.startswith(PREFIX) | User.email.endswith("@test.braque"))).all()
         for u in users:
             for r in s.exec(select(Run).where(Run.user_id == u.id)).all():
                 for e in s.exec(select(RunEvent).where(RunEvent.run_id == r.id)).all():

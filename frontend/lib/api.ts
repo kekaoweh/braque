@@ -1,7 +1,45 @@
 /** What the sign-in page should ask for. */
-export type Access = { invite_required: boolean; claude_account_restricted: boolean; owner_code_enabled: boolean };
+export type Access = {
+  invite_required: boolean;
+  claude_account_restricted: boolean;
+  owner_code_enabled: boolean;
+  /** Customers without their own key make videos on the studio key, up to a monthly limit. */
+  studio_credit: boolean;
+  studio_monthly_limit: number;
+};
 
-export type User = { id: string; name: string; token_kind: "oauth" | "api_key"; token_hint: string };
+export type User = {
+  id: string;
+  name: string;
+  email: string | null;
+  /** How they sign in: email + password, an API key, or a Claude-account token (the site admin). */
+  method: "email" | "key" | "claude";
+  /** Their own credential, or "" when the studio key pays. */
+  token_kind: "oauth" | "api_key" | "";
+  token_hint: string;
+  is_admin: boolean;
+};
+
+export type Account = {
+  payer: "own" | "studio" | "none";
+  studio_credit: boolean;
+  studio_spent: number;
+  studio_limit: number;
+  has_password: boolean;
+};
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  email: string | null;
+  method: User["method"];
+  pays: string;
+  studio_spent: number;
+  videos: number;
+  created_at: string;
+};
+
+export type SharedVideo = { title: string; studio: string; duration: number | null; aspect: Aspect; created_at: string };
 
 export type AssetKind = "video" | "image" | "audio";
 export type AssetRole = "footage" | "reference" | "music";
@@ -39,6 +77,10 @@ export type Run = {
   has_video: boolean;
   duration: number | null;
   cost_usd: number | null;
+  /** Who paid: "own" key, the "studio" key, or "" (a re-render, no AI). */
+  billed_to: "own" | "studio" | "";
+  /** Set while the version has a public watch link at /s/<share_id>. */
+  share_id: string | null;
   created_at: string;
   finished_at: string | null;
 };
@@ -152,7 +194,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       const body = await res.json();
       message = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
     } catch {}
-    if (res.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+    // An expired session sends you to sign in, except where 401 is an answer (sign-in, public share pages).
+    const path = typeof window !== "undefined" ? window.location.pathname : "/login";
+    if (res.status === 401 && path !== "/login" && !path.startsWith("/s/")) {
       window.location.href = "/login";
     }
     throw new ApiError(res.status, message);
@@ -170,6 +214,19 @@ export const api = {
   updateMe: (name: string) => request<User>("/auth/me", { method: "PATCH", body: json({ name }) }),
   logout: () => request("/auth/logout", { method: "POST" }),
   forget: () => request("/auth/forget", { method: "POST" }),
+  signup: (body: { email: string; password: string; name: string; invite: string }) =>
+    request<User>("/auth/signup", { method: "POST", body: json(body) }),
+  signin: (email: string, password: string) =>
+    request<User>("/auth/signin", { method: "POST", body: json({ email, password }) }),
+  account: () => request<Account>("/auth/account"),
+  setKey: (token: string) => request<User>("/auth/account/key", { method: "PUT", body: json({ token }) }),
+  removeKey: () => request<User>("/auth/account/key", { method: "DELETE" }),
+  changePassword: (current: string, next: string) =>
+    request("/auth/account/password", { method: "PUT", body: json({ current, new: next }) }),
+  adminUsers: () => request<AdminUser[]>("/auth/admin/users"),
+  share: (runId: string) => request<Run>(`/runs/${runId}/share`, { method: "POST" }),
+  unshare: (runId: string) => request<Run>(`/runs/${runId}/share`, { method: "DELETE" }),
+  shared: (shareId: string) => request<SharedVideo>(`/share/${shareId}`),
 
   projects: () => request<ProjectSummary[]>("/projects"),
   project: (id: string) => request<Project>(`/projects/${id}`),
@@ -229,6 +286,7 @@ export const media = {
   thumb: (assetId: string) => `/api/assets/${assetId}/thumb`,
   file: (assetId: string) => `/api/assets/${assetId}/file`,
   video: (runId: string, download = false) => `/api/runs/${runId}/video${download ? "?download=true" : ""}`,
+  sharedVideo: (shareId: string, download = false) => `/api/share/${shareId}/video${download ? "?download=true" : ""}`,
   events: (runId: string) => `/api/runs/${runId}/events`,
 };
 

@@ -42,23 +42,53 @@ const ok = (name, cond, extra = "") => {
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true });
 try {
-  // 1. Sign-in page
+  // 1. Sign-in: email accounts, then the API-key route
   {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     await page.goto(`${BASE}/`);
     await page.waitForURL("**/login", { timeout: 15000 });
     ok("signed-out visitor is sent to sign-in", page.url().endsWith("/login"));
-    const enter = page.getByRole("button", { name: /Enter the studio/ });
-    ok("Enter is disabled until a token is pasted", await enter.isDisabled());
-    await page.getByPlaceholder("sk-ant-oat01-…").fill("sk-ant-oat01-" + "z".repeat(90));
-    ok("Enter is enabled with a token", await enter.isEnabled());
-    await enter.click();
-    await page.getByRole("button", { name: /Checking with Claude/ }).waitFor({ timeout: 5000 });
-    ok("shows 'Checking with Claude' while verifying", true);
-    await page.getByText("Claude didn't accept that token").waitFor({ timeout: 90000 });
-    ok("an invalid token shows a clear error", page.url().endsWith("/login"));
+    const signIn = page.getByRole("button", { name: "Sign in", exact: true }).last();
+    ok("Sign in waits for an email and password", await signIn.isDisabled());
+
+    // A new customer: create an account (test emails end in @test.braque; dev_session cleanup removes them)
+    const email = `e2e+${Date.now()}@test.braque`;
+    await page.getByRole("button", { name: "Create account" }).first().click();
+    await page.getByPlaceholder("you@example.com").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("walkthrough-pass");
+    await page.getByLabel("Studio name").fill("Email Customer");
+    await page.getByRole("button", { name: /Create account/ }).last().click();
+    await page.getByRole("heading", { name: /What shall we/ }).waitFor({ timeout: 15000 });
+    ok("creating an email account opens the Studio", await page.getByText(/, Email Customer$/).isVisible());
+    await page.getByRole("button", { name: /Email Customer/ }).click();
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await page.waitForURL("**/login");
+    await page.getByPlaceholder("you@example.com").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("wrong-password");
+    await signIn.click();
+    await page.getByText("That email and password don't match").waitFor({ timeout: 10000 });
+    ok("a wrong password is refused clearly", true);
+    await page.getByLabel("Password", { exact: true }).fill("walkthrough-pass");
+    await signIn.click();
+    await page.getByRole("heading", { name: /What shall we/ }).waitFor({ timeout: 15000 });
+    ok("signing back in with email works", true);
     await ctx.close();
+
+    // The API-key route still checks the key with Claude
+    const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page2 = await ctx2.newPage();
+    await page2.goto(`${BASE}/login`);
+    await page2.getByRole("button", { name: "Use it instead" }).click();
+    const enter = page2.getByRole("button", { name: /Enter the studio/ });
+    ok("Enter waits for a key", await enter.isDisabled());
+    await page2.getByPlaceholder("sk-ant-api03-…").fill("sk-ant-api03-" + "z".repeat(90));
+    await enter.click();
+    await page2.getByRole("button", { name: /Checking with Claude/ }).waitFor({ timeout: 5000 });
+    ok("shows 'Checking with Claude' while verifying", true);
+    await page2.getByText("Claude didn't accept that token").waitFor({ timeout: 90000 });
+    ok("an invalid key shows a clear error", page2.url().endsWith("/login"));
+    await ctx2.close();
   }
 
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -197,7 +227,7 @@ try {
   await page.waitForTimeout(500);
   ok("removing a video returns to the Studio without it", !(await page.locator("aside").getByText("Launch teaser QA").count()));
   await page.getByRole("button", { name: /UI Test/ }).click();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.waitForURL("**/login");
   ok("sign out returns to sign-in", true);
   await ctx.close();
