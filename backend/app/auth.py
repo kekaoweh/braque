@@ -1,4 +1,5 @@
 import hashlib
+import re
 import secrets
 from datetime import timedelta
 
@@ -20,9 +21,31 @@ def _sha(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+_TOKEN = re.compile(r"[A-Za-z0-9_-]+")
+# Whitespace, quotes and the box-drawing borders terminals draw around output.
+_FRAME = " \t\"'`|" + "".join(chr(c) for c in range(0x2500, 0x2580))
+
+
 def clean_token(raw: str) -> str:
-    """Pasted keys often carry spaces, line breaks or quotes from wherever they were copied."""
-    return "".join(raw.split()).strip("\"'`")
+    """Pull the key out of whatever was pasted. Copies from a terminal often bring along words
+    ("Your OAuth token: …"), `export VAR=` prefixes, box borders, quotes, or the key wrapped over
+    several lines; a wrapped continuation is a line holding nothing but key characters."""
+    lines = raw.replace("\r", "").split("\n")
+    for i, line in enumerate(lines):
+        start = line.find("sk-ant-")
+        if start < 0:
+            continue
+        token = _TOKEN.match(line, start).group(0)
+        rest = line[start + len(token):]
+        for nxt in lines[i + 1:]:
+            if rest.strip(_FRAME):
+                break  # something other than a border followed the key on its line: it ended there
+            part = nxt.strip(_FRAME)
+            if not part or not _TOKEN.fullmatch(part):
+                break
+            token, rest = token + part, ""
+        return token
+    return "".join(raw.split()).strip(_FRAME)
 
 
 def token_kind(token: str) -> str:
@@ -33,9 +56,11 @@ def token_kind(token: str) -> str:
     if token.startswith("sk-ant-admin"):
         raise HTTPException(400, "That's an Admin API key, which can't run Claude. In console.anthropic.com "
                                  "go to API keys (not Admin keys) and create a regular key; it starts with sk-ant-api.")
-    raise HTTPException(400, "That doesn't look like an Anthropic key. Paste an API key from "
-                             "console.anthropic.com (sk-ant-api…) or a Claude-account token from "
-                             "`claude setup-token` (sk-ant-oat…).")
+    seen = f" What was pasted starts with “{token[:6]}…”." if token else ""
+    raise HTTPException(400, "That doesn't look like an Anthropic key." + seen + " Paste an API key from "
+                             "console.anthropic.com (it starts with sk-ant-api) or the token `claude setup-token` "
+                             "prints in Terminal (it starts with sk-ant-oat). If the browser showed you a code "
+                             "during setup-token, that code goes back into Terminal; the token appears there after.")
 
 
 def claude_accounts_restricted() -> bool:

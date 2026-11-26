@@ -10,8 +10,32 @@ import { Access, api } from "@/lib/api";
 
 const COMMAND = "claude setup-token";
 
-/** Pasted keys often carry spaces, line breaks or quotes from wherever they were copied. */
-const clean = (raw: string) => raw.replace(/\s+/g, "").replace(/^["'`]+|["'`]+$/g, "");
+// Whitespace, quotes and the box-drawing borders terminals draw around output.
+const FRAME = /^[\s"'`|\u2500-\u257f]+|[\s"'`|\u2500-\u257f]+$/g;
+const KEY_CHARS = /^[A-Za-z0-9_-]+/;
+
+/**
+ * Pull the key out of whatever was pasted (mirrors clean_token on the server): copies from a
+ * terminal bring along words, `export VAR=`, box borders, quotes, or the key wrapped over lines.
+ */
+function clean(raw: string): string {
+  const lines = raw.replace(/\r/g, "").split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const start = lines[i].indexOf("sk-ant-");
+    if (start < 0) continue;
+    let token = lines[i].slice(start).match(KEY_CHARS)![0];
+    let rest = lines[i].slice(start + token.length);
+    for (const next of lines.slice(i + 1)) {
+      if (rest.replace(FRAME, "")) break;
+      const part = next.replace(FRAME, "");
+      if (!part || !/^[A-Za-z0-9_-]+$/.test(part)) break;
+      token += part;
+      rest = "";
+    }
+    return token;
+  }
+  return raw.replace(/\s+/g, "").replace(FRAME, "");
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -163,6 +187,14 @@ export default function LoginPage() {
                     type={show ? "text" : "password"}
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
+                    // Read the clipboard ourselves: a single-line input drops line breaks, which would
+                    // glue a wrapped key's border characters into the middle of it.
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      if (!text) return;
+                      e.preventDefault();
+                      setToken(clean(text));
+                    }}
                     placeholder={mode === "key" ? "sk-ant-api03-…" : "sk-ant-oat01-…"}
                     aria-label={mode === "key" ? "API key" : "Claude token"}
                     autoComplete="off"
