@@ -7,7 +7,7 @@ import { useApp } from "@/components/app-context";
 import { AspectPicker, LengthPicker, StylePicker } from "@/components/pickers";
 import { Badge, Button, ErrorNote, PageHeader, SectionHeader, Segmented, Switch, useDebouncedCallback } from "@/components/ui";
 import { setMotion, setTheme, Theme, useAppearance } from "@/lib/appearance";
-import { Account, AdminUser, api, FootageSource, Settings } from "@/lib/api";
+import { AdminUser, api, FootageSource, Settings } from "@/lib/api";
 
 const LANGUAGES = ["English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch", "Japanese", "Korean", "Chinese", "Hindi", "Arabic"];
 
@@ -272,38 +272,18 @@ function SaveState({ state }: { state: "idle" | "saving" | "saved" | "error" }) 
 
 /**
  * Who pays for this person's videos: their own API key, or the studio's monthly credit (with a
- * meter). Lets them add, replace or remove their own key.
+ * meter). Connecting or replacing a key goes through the shared "Connect your API key" guide.
  */
 function VideoCredit() {
-  const { user, setUser } = useApp();
-  const [account, setAccount] = useState<Account | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { user, setUser, account, refreshAccount, connectKey } = useApp();
+  useEffect(() => { refreshAccount(); }, [refreshAccount]);
 
-  const load = () => api.account().then(setAccount).catch(() => {});
-  useEffect(() => { load(); }, [user.token_kind]);
-
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setUser(await api.setKey(key));
-      setKey("");
-      setAdding(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't add the key");
-    } finally {
-      setBusy(false);
-    }
-  };
   const remove = async () => {
-    if (!window.confirm("Remove your API key? Your videos will use the studio's monthly credit instead, if it offers any.")) return;
+    if (!window.confirm("Remove your API key? You won't be able to make new videos until you connect one again" + (account.studio_credit ? ", apart from the studio's monthly credit." : "."))) return;
     setUser(await api.removeKey());
+    await refreshAccount();
   };
 
-  if (!account) return null;
   const own = account.payer === "own";
   const pct = account.studio_limit ? Math.min(100, (account.studio_spent / account.studio_limit) * 100) : 0;
   const resets = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString(undefined, { month: "long", day: "numeric" });
@@ -315,20 +295,22 @@ function VideoCredit() {
           <div className="text-[14px] font-medium">Video credit</div>
           <p className="mt-0.5 text-[13px] leading-relaxed text-faint">
             {own
-              ? user.token_kind === "oauth" ? "Your videos run on your Claude plan." : "Your videos run on your own Anthropic API key, with no limit from this studio."
+              ? user.token_kind === "oauth" ? "Your videos run on your Claude plan." : "Your videos run on your own Anthropic API key, billed to you by Anthropic."
               : account.studio_credit
                 ? `Your videos run on the studio's credit: $${account.studio_limit} a month, renewing ${resets}.`
-                : "Add an Anthropic API key to start making videos."}
+                : "Connect an Anthropic API key to start making videos."}
           </p>
         </div>
         {own && user.email ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="font-mono text-[12.5px] text-muted">{user.token_hint}</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="mr-1 font-mono text-[12.5px] text-muted">{user.token_hint}</span>
+            <Button size="sm" variant="ghost" onClick={() => connectKey()}>Replace</Button>
             <Button size="sm" variant="ghost" onClick={remove}>Remove</Button>
           </div>
-        ) : !own && !adding ? (
-          <Button size="sm" className="shrink-0" onClick={() => setAdding(true)} icon={<KeyRound className="size-3.5" strokeWidth={1.75} />}>
-            Add your API key
+        ) : !own ? (
+          <Button size="sm" variant={account.studio_credit ? "secondary" : "primary"} className="shrink-0" onClick={() => connectKey()}
+            icon={<KeyRound className="size-3.5" strokeWidth={1.75} />}>
+            {account.studio_credit ? "Use your own key" : "Connect your key"}
           </Button>
         ) : null}
       </div>
@@ -340,29 +322,6 @@ function VideoCredit() {
           <p className="mt-1.5 text-[12px] text-faint tabular-nums">
             ${account.studio_spent.toFixed(2)} of ${account.studio_limit.toFixed(2)} used this month
           </p>
-        </div>
-      )}
-      {adding && (
-        <div className="mt-3 rounded-control border border-line bg-bg p-3.5">
-          <p className="text-[12.5px] leading-relaxed text-muted">
-            Create a key at{" "}
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-fg">console.anthropic.com</a>{" "}
-            (add a few dollars of credit under Billing first), then paste it here.
-          </p>
-          <div className="mt-2.5 flex gap-2">
-            <input
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="sk-ant-api03-…"
-              aria-label="Your API key"
-              autoComplete="off"
-              className="field h-9 min-w-0 flex-1 px-3 font-mono text-[13px]"
-            />
-            <Button size="sm" className="h-9" variant="primary" onClick={save} loading={busy} disabled={!key.trim()}>Save</Button>
-            <Button size="sm" className="h-9" variant="ghost" onClick={() => { setAdding(false); setError(null); }}>Cancel</Button>
-          </div>
-          {error && <ErrorNote className="mt-2.5">{error}</ErrorNote>}
         </div>
       )}
     </div>
@@ -414,12 +373,33 @@ function PasswordRow() {
 /** The site admin's view: everyone with a studio here, how they pay, and studio credit used. */
 function AdminCard() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [invite, setInvite] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     api.adminUsers().then(setUsers).catch(() => setUsers([]));
+    api.adminInvite().then((r) => setInvite(r.code)).catch(() => setInvite(""));
   }, []);
+  const link = invite ? `${window.location.origin}/login?invite=${encodeURIComponent(invite)}` : `${window.location.origin}/login`;
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(link).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
   const total = (users ?? []).reduce((sum, u) => sum + u.studio_spent, 0);
   return (
     <Card id="admin" title="Site admin" description="Everyone with a studio on this site. Only you can see this.">
+      <div className="py-4">
+        <div className="text-[14px] font-medium">Invite link</div>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-faint">
+          {invite ? "Send this to customers: it opens sign-up with the invite code already applied." : "Sign-up is open to anyone, so this is just the sign-in page."}
+        </p>
+        <div className="field mt-2.5 flex items-center gap-2 bg-bg py-1 pr-1 pl-3 shadow-none">
+          <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-muted">{invite === null ? "…" : link}</span>
+          <Button size="sm" onClick={copyLink} icon={copied ? <Check className="size-3.5 text-sage" strokeWidth={2} /> : undefined}>
+            {copied ? "Copied" : "Copy link"}
+          </Button>
+        </div>
+      </div>
       <div className="py-4">
         {!users ? (
           <p className="text-[13px] text-faint">Loading…</p>

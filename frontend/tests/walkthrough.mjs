@@ -61,6 +61,11 @@ try {
     await page.getByRole("button", { name: /Create account/ }).last().click();
     await page.getByRole("heading", { name: /What shall we/ }).waitFor({ timeout: 15000 });
     ok("creating an email account opens the Studio", await page.getByText(/, Email Customer$/).isVisible());
+    // Without studio credit, a new customer is walked straight into connecting an API key.
+    await page.getByRole("dialog", { name: "Connect your Anthropic API key" }).waitFor({ timeout: 10000 });
+    ok("a new customer is offered the connect-key guide", true);
+    await page.getByRole("button", { name: "Not now" }).click();
+    ok("…and can skip it; the Studio says what's left to do", await page.getByRole("button", { name: "Connect your key" }).isVisible());
     await page.getByRole("button", { name: /Email Customer/ }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.waitForURL("**/login");

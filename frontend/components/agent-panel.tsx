@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { StatusPill } from "@/components/status";
 import { Button, ErrorNote, Spinner, StepNumber } from "@/components/ui";
-import { ACTIVE_STATUSES, api, Asset, formatDuration, media, Run, RunEvent, timeAgo } from "@/lib/api";
+import { useApp } from "@/components/app-context";
+import { ACTIVE_STATUSES, api, ApiError, Asset, formatDuration, media, Run, RunEvent, timeAgo } from "@/lib/api";
 
 /** Live event stream for one run; reconnects from the last seen event. */
 function useRunEvents(run: Run | null, onFinished: () => void) {
@@ -25,6 +26,9 @@ function useRunEvents(run: Run | null, onFinished: () => void) {
     const open = () => {
       es = new EventSource(`${media.events(run.id)}?after=${last}`);
       const onEvent = (e: MessageEvent) => {
+        // The browser's own "error" event (a dropped connection) shares the name of our server-sent
+        // "error" events but carries no data; reconnecting is handled by onerror below.
+        if (typeof e.data !== "string") return;
         const data = JSON.parse(e.data) as RunEvent;
         last = Math.max(last, data.id);
         setEvents((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
@@ -74,6 +78,7 @@ export function AgentPanel({
   onRunFinished: () => void;
   beforeStart?: () => Promise<void>;
 }) {
+  const { account, connectKey, refreshAccount } = useApp();
   const latest = runs[0] ?? null;
   const active = latest && ACTIVE_STATUSES.includes(latest.status) ? latest : null;
   const events = useRunEvents(latest, onRunFinished);
@@ -94,8 +99,14 @@ export function AgentPanel({
       const run = await api.startRun(projectId, text, mode);
       onRunsChange([run, ...runs]);
       setInstruction("");
+      refreshAccount();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't start");
+      // 402: nothing can pay for Claude yet. Connect a key, then start this same video.
+      if (e instanceof ApiError && e.status === 402 && account.payer === "none" && !account.studio_credit) {
+        connectKey(() => start(mode, text));
+      } else {
+        setError(e instanceof Error ? e.message : "Couldn't start");
+      }
     } finally {
       setBusy(false);
     }

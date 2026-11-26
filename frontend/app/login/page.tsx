@@ -7,38 +7,9 @@ import { StudyPlate } from "@/components/artwork";
 import { Wordmark } from "@/components/logo";
 import { Button, ErrorNote, Segmented, StepNumber } from "@/components/ui";
 import { Access, api } from "@/lib/api";
+import { cleanCode, cleanKey as clean } from "@/lib/keys";
 
 const COMMAND = "claude setup-token";
-
-/** Codes copied from a chat or a file can pick up spaces, quotes or backticks. */
-const cleanCode = (raw: string) => raw.replace(/\s+/g, "").replace(/^["'`]+|["'`]+$/g, "");
-
-// Whitespace, quotes and the box-drawing borders terminals draw around output.
-const FRAME = /^[\s"'`|─-╿]+|[\s"'`|─-╿]+$/g;
-const KEY_CHARS = /^[A-Za-z0-9_-]+/;
-
-/**
- * Pull the key out of whatever was pasted (mirrors clean_token on the server): copies from a
- * terminal bring along words, `export VAR=`, box borders, quotes, or the key wrapped over lines.
- */
-function clean(raw: string): string {
-  const lines = raw.replace(/\r/g, "").split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const start = lines[i].indexOf("sk-ant-");
-    if (start < 0) continue;
-    let token = lines[i].slice(start).match(KEY_CHARS)![0];
-    let rest = lines[i].slice(start + token.length);
-    for (const next of lines.slice(i + 1)) {
-      if (rest.replace(FRAME, "")) break;
-      const part = next.replace(FRAME, "");
-      if (!part || !/^[A-Za-z0-9_-]+$/.test(part)) break;
-      token += part;
-      rest = "";
-    }
-    return token;
-  }
-  return raw.replace(/\s+/g, "").replace(FRAME, "");
-}
 
 /**
  * How you get in:
@@ -67,9 +38,17 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // An invite link (/login?invite=CODE) opens Create account with the code already applied.
+  const [invited, setInvited] = useState(false);
   useEffect(() => {
     api.me().then(() => router.replace("/")).catch(() => {});
     api.access().then(setAccess).catch(() => {});
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (code) {
+      setInvite(cleanCode(code));
+      setInvited(true);
+      setView("signup");
+    }
   }, [router]);
 
   const go = (next: View) => {
@@ -104,8 +83,12 @@ export default function LoginPage() {
     setError(null);
     try {
       if (view === "signin") await api.signin(email, password);
-      else if (view === "signup") await api.signup({ email, password, name: name.trim(), invite: cleanCode(invite) });
-      else await api.login(cleaned, name.trim(), askInvite ? cleanCode(invite) : "", askAdminCode ? cleanCode(adminCode) : "");
+      else if (view === "signup") {
+        await api.signup({ email, password, name: name.trim(), invite: cleanCode(invite) });
+        // New customers land on the Studio, which walks them through connecting a key if they need one.
+        router.replace("/?welcome");
+        return;
+      } else await api.login(cleaned, name.trim(), askInvite ? cleanCode(invite) : "", askAdminCode ? cleanCode(adminCode) : "");
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -250,12 +233,20 @@ export default function LoginPage() {
                   </Field>
                   {view === "signup" && (
                     <>
-                      {access.invite_required && <Field label="Invite code">{inviteInput}</Field>}
+                      {access.invite_required && (invited ? (
+                        <p className="flex items-center gap-2 rounded-control bg-sage-soft px-3.5 py-2 text-[13px] text-sage">
+                          <Check className="size-3.5" strokeWidth={2} />
+                          Invite applied
+                          <button type="button" onClick={() => setInvited(false)} className="ml-auto text-[12px] text-muted underline-offset-4 hover:underline">
+                            Change
+                          </button>
+                        </p>
+                      ) : <Field label="Invite code">{inviteInput}</Field>)}
                       <Field label="Name your studio" note="optional">{nameInput}</Field>
                       <p className="rounded-control bg-bg px-3.5 py-2.5 text-[12.5px] leading-relaxed text-muted">
                         {access.studio_credit
                           ? `Includes $${access.studio_monthly_limit} of video credit every month, so there's nothing to set up. You can add your own Anthropic API key later for unlimited use.`
-                          : "After signing up you'll add an Anthropic API key in Settings to make videos."}
+                          : "Next, you'll connect an Anthropic API key (about two minutes); Anthropic bills you directly for what you make."}
                       </p>
                     </>
                   )}

@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { api, ProjectSummary, Settings, Style, User } from "@/lib/api";
+import { ConnectKeyDialog } from "@/components/connect-key";
+import { Account, api, ProjectSummary, Settings, Style, User } from "@/lib/api";
 
 type AppState = {
   user: User;
@@ -14,6 +15,11 @@ type AppState = {
   settings: Settings;
   /** Optimistically apply a change and save it; resolves when the server has it. */
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
+  /** Who pays for this user's videos, and studio credit used. */
+  account: Account;
+  refreshAccount: () => Promise<void>;
+  /** Open "Connect your API key"; `then` runs once a key is connected (e.g. start the video). */
+  connectKey: (then?: () => void) => void;
 };
 
 const Ctx = createContext<AppState | null>(null);
@@ -29,6 +35,9 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const afterConnect = useRef<(() => void) | undefined>(undefined);
 
   const refreshProjects = useCallback(async () => setProjects(await api.projects()), []);
   const refreshStyles = useCallback(async () => setStyles(await api.styles()), []);
@@ -51,19 +60,44 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
     if (settingsRef.current === next) setSettings(saved);
   }, []);
 
+  const refreshAccount = useCallback(async () => setAccount(await api.account()), []);
+  const connectKey = useCallback((then?: () => void) => {
+    afterConnect.current = then;
+    setConnecting(true);
+  }, []);
+  const closeConnect = useCallback(() => setConnecting(false), []);
+
   useEffect(() => {
     // api.request redirects to /login on 401.
     api.me().then(async (u) => {
-      const [, , s] = await Promise.all([refreshProjects(), refreshStyles(), api.settings()]);
+      const [, , s, a] = await Promise.all([refreshProjects(), refreshStyles(), api.settings(), api.account()]);
       setSettings(s);
+      setAccount(a);
       setUser(u);
     }).catch(() => {});
   }, [refreshProjects, refreshStyles]);
 
-  if (!user || !settings) return <>{fallback}</>;
+  if (!user || !settings || !account) return <>{fallback}</>;
   return (
-    <Ctx.Provider value={{ user, setUser, projects, refreshProjects, patchProjectSummary, styles, refreshStyles, settings, updateSettings }}>
+    <Ctx.Provider
+      value={{
+        user, setUser, projects, refreshProjects, patchProjectSummary, styles, refreshStyles, settings, updateSettings,
+        account, refreshAccount, connectKey,
+      }}
+    >
       {children}
+      <ConnectKeyDialog
+        open={connecting}
+        onClose={closeConnect}
+        onConnected={async (u) => {
+          setUser(u);
+          setConnecting(false);
+          await refreshAccount();
+          const then = afterConnect.current;
+          afterConnect.current = undefined;
+          then?.();
+        }}
+      />
     </Ctx.Provider>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Lightbulb } from "lucide-react";
+import { ArrowRight, KeyRound, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/components/app-context";
 import { Cover, TiltCard } from "@/components/frame";
 import { AspectPicker, LengthPicker, StylePicker } from "@/components/pickers";
@@ -24,7 +24,15 @@ function greeting() {
 }
 
 export default function StudioPage() {
-  const { user, projects, styles, settings, refreshProjects } = useApp();
+  const { user, projects, styles, settings, refreshProjects, account, connectKey } = useApp();
+  const needsKey = account.payer === "none" && !account.studio_credit;
+
+  // Right after sign-up (/?welcome), walk a new customer through connecting their key.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("welcome")) return;
+    window.history.replaceState(null, "", "/");
+    if (needsKey) connectKey();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [seconds, setSeconds] = useState(settings.default_seconds);
@@ -54,6 +62,22 @@ export default function StudioPage() {
           title={<>What shall we <span className="text-accent">make</span> today?</>}
           description="Describe a video and the editor researches it, finds licensed footage, writes it and cuts it."
         />
+
+        {needsKey && (
+          <div className="card mt-8 flex flex-col gap-4 border-accent/25 bg-accent-soft/40 p-5 sm:flex-row sm:items-center">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <KeyRound className="size-5" strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold tracking-[-0.01em]">One step before your first video</p>
+              <p className="mt-0.5 text-[13.5px] leading-relaxed text-muted">
+                Connect an Anthropic API key so the editor can work. It takes about two minutes, and a short video
+                usually costs well under $1.
+              </p>
+            </div>
+            <Button variant="primary" className="shrink-0" onClick={() => connectKey()}>Connect your key</Button>
+          </div>
+        )}
 
         {/* Composer */}
         <div className="card mt-8 overflow-hidden shadow-e3 transition-shadow focus-within:shadow-e4">

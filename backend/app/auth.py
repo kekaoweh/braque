@@ -309,7 +309,8 @@ async def set_key(body: KeyIn, user: User = Depends(current_user), db: Session =
     try:
         await verify_credential(token, kind, user.id)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(401, f"Claude didn't accept that key: {exc}") from exc
+        # 400, not 401: the user is signed in; it's the key that was refused (401 means "sign in again").
+        raise HTTPException(400, f"Claude didn't accept that key: {exc}") from exc
     user.token_kind = kind
     user.token_enc = fernet.encrypt(token.encode()).decode()
     user.token_hint = f"{token[:10]}…{token[-4:]}"
@@ -351,6 +352,18 @@ def change_password(body: PasswordIn, user: User = Depends(current_user), db: Se
 
 
 # --- Site admin ---------------------------------------------------------------------------------
+
+
+class InviteOut(BaseModel):
+    code: str  # empty when sign-up is open
+
+
+@router.get("/admin/invite", response_model=InviteOut)
+def admin_invite(user: User = Depends(current_user)):
+    """The invite code, so the admin can share a ready-made invite link."""
+    if not accounts.is_admin(user):
+        raise HTTPException(403, "Only the site admin can see this.")
+    return InviteOut(code=INVITE_CODE)
 
 
 class AdminUserOut(BaseModel):
