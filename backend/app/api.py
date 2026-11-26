@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlmodel import Session, col, or_, select
@@ -15,8 +15,8 @@ from sse_starlette.sse import EventSourceResponse
 from . import accounts, pipeline, sources, storage
 from . import settings as user_settings
 from .auth import current_user
-from .config import THUMBS_DIR, UPLOADS_DIR
-from .db import Asset, Project, Run, RunEvent, Style, User, engine, get_session, now
+from .config import CLAUDE_HOMES_DIR, COOKIE_NAME, THUMBS_DIR, UPLOADS_DIR
+from .db import Asset, AuthSession, Project, Run, RunEvent, Style, User, engine, get_session, now
 from .media import MediaError, kind_for, make_thumbnail, probe
 from .timeline import ASPECTS, Timeline
 
@@ -253,7 +253,13 @@ def update_project(project_id: str, body: ProjectUpdate, user: User = Depends(cu
 
 @router.delete("/projects/{project_id}")
 async def delete_project(project_id: str, user: User = Depends(current_user), db: Session = Depends(get_session)):
-    p = own_project(project_id, user, db)
+    _remove_project(db, own_project(project_id, user, db))
+    db.commit()
+    return {"ok": True}
+
+
+def _remove_project(db: Session, p: Project) -> None:
+    """Delete a project with its runs, events, renders and media (local and cloud copies); no commit."""
     runs = db.exec(select(Run).where(Run.project_id == p.id)).all()
     for r in runs:
         pipeline.cancel(r.id)
@@ -267,7 +273,30 @@ async def delete_project(project_id: str, user: User = Depends(current_user), db
         _delete_asset_files(a)
         db.delete(a)
     db.delete(p)
+
+
+class DeleteAccountIn(BaseModel):
+    password: str = Field(default="", max_length=200)
+
+
+@router.post("/account/delete")
+async def delete_account(body: DeleteAccountIn, response: Response, user: User = Depends(current_user),
+                         db: Session = Depends(get_session)):
+    """Delete this account and everything in it: videos, media, styles, sessions and stored key."""
+    if accounts.is_admin(user):
+        raise HTTPException(400, "The site admin account can't be deleted from here.")
+    if user.email and not accounts.check_password(body.password, user.password_hash):
+        raise HTTPException(403, "Enter your current password to delete your account.")
+    for p in db.exec(select(Project).where(Project.user_id == user.id)).all():
+        _remove_project(db, p)
+    for model in (Style, AuthSession):
+        for row in db.exec(select(model).where(model.user_id == user.id)).all():
+            db.delete(row)
+    db.delete(db.get(User, user.id))
     db.commit()
+    shutil.rmtree(UPLOADS_DIR / user.id, ignore_errors=True)
+    shutil.rmtree(CLAUDE_HOMES_DIR / user.id, ignore_errors=True)
+    response.delete_cookie(COOKIE_NAME, path="/")
     return {"ok": True}
 
 

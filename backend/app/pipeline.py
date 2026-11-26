@@ -98,18 +98,37 @@ async def _execute(run_id: str) -> None:
     except Exception as exc:  # noqa: BLE001
         log.exception("run %s failed", run_id)
         _set(run_id, finished_at=now())
-        await _status(run_id, "error", error=friendly_error(str(exc)))
+        payer = run.billed_to or "own"
+        kind = "api_key" if payer == "studio" else (user.token_kind or "api_key")
+        await _status(run_id, "error", error=friendly_error(str(exc), payer, kind))
     finally:
         _tasks.pop(run_id, None)
 
 
-def friendly_error(message: str) -> str:
+def friendly_error(message: str, payer: str = "own", kind: str = "oauth") -> str:
+    """Turn API failures into what the person should do next, which depends on whose credential ran:
+    the studio key (the admin's problem), their own API key, or a Claude-account token."""
     lowered = message.lower()
-    if "authenticate" in lowered or "401" in message or "invalid api key" in lowered:
+    studio = payer == "studio"
+    if "credit balance" in lowered or "billing" in lowered or "insufficient" in lowered:
+        if studio:
+            return "The studio's Claude credit has run out. Please let the site admin know; try again later."
+        return ("Your Anthropic account is out of credit. Add credit at console.anthropic.com → Billing, "
+                "then try again.")
+    if "authenticate" in lowered or "401" in message or "invalid api key" in lowered or "x-api-key" in lowered:
+        if studio:
+            return "The studio's Claude key stopped working. Please let the site admin know."
+        if kind == "api_key":
+            return ("Your Anthropic API key no longer works (it may have been deleted or disabled). "
+                    "Connect a new one in Settings → Account.")
         return ("Claude rejected your token (it may have expired or been revoked). Sign out, run "
                 "`claude setup-token` again and sign in with the new token.")
     if "429" in message or "rate limit" in lowered or "usage limit" in lowered:
+        if kind == "api_key" or studio:
+            return "Claude is busy or this key hit its rate limit. Wait a minute and try again."
         return "You've hit your Claude usage limit. Try again once it resets."
+    if "overloaded" in lowered or "529" in message:
+        return "Claude is overloaded right now. Wait a minute and try again."
     return message[:2000]
 
 

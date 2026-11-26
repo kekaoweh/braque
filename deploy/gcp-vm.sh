@@ -6,6 +6,7 @@
 #   deploy/gcp-vm.sh env       # re-upload settings (allowlist, invite code, keys) and restart
 #   deploy/gcp-vm.sh status    # containers and the site address
 #   deploy/gcp-vm.sh logs      # follow the API logs
+#   deploy/gcp-vm.sh backup    # take a fresh database backup and download all copies to deploy/backups/
 #   deploy/gcp-vm.sh ssh
 #
 # Overrides: PROJECT, ZONE (us-central1-a), NAME (picasso), MACHINE (e2-standard-2), DISK_GB (50),
@@ -89,7 +90,7 @@ case "${1:-}" in
     echo "Picasso is live at https://$(grep '^PICASSO_DOMAIN=' "$HERE/.env" | cut -d= -f2)"
     ;;
   update)
-    on_vm 'cd /opt/picasso && sudo git pull --ff-only && cd deploy && sudo docker compose up -d --build --remove-orphans && sudo docker image prune -f'
+    on_vm 'cd /opt/picasso && sudo git pull --ff-only && cd deploy && sudo docker compose up -d --build --remove-orphans && sudo docker image prune -f && sudo docker builder prune -f --keep-storage 2GB'
     ;;
   env)
     write_env
@@ -99,6 +100,17 @@ case "${1:-}" in
   status)
     on_vm 'cd /opt/picasso/deploy && sudo docker compose ps'
     echo "https://$(grep -s '^PICASSO_DOMAIN=' "$HERE/.env" | cut -d= -f2)"
+    ;;
+  backup)
+    # The server keeps 14 daily copies (app/backup.py); this adds one now and brings them all here.
+    # They include secret.key, which decrypts stored keys: keep deploy/backups/ private (git ignores it).
+    on_vm 'cd /opt/picasso/deploy && sudo docker compose exec -T backend python -m app.backup >/dev/null && sudo tar czf /tmp/braque-backups.tgz -C /var/lib/docker/volumes/deploy_picasso-data/_data backups && sudo chmod 644 /tmp/braque-backups.tgz'
+    mkdir -p "$HERE/backups"
+    out="$HERE/backups/braque-backups-$(date +%Y-%m-%d).tgz"
+    $G compute scp "$NAME:/tmp/braque-backups.tgz" "$out" --zone="$ZONE"
+    on_vm 'sudo rm -f /tmp/braque-backups.tgz'
+    chmod 600 "$out"
+    echo "Saved $out"
     ;;
   logs) on_vm 'cd /opt/picasso/deploy && sudo docker compose logs -f --tail=100 backend' ;;
   ssh) $G compute ssh "$NAME" --zone="$ZONE" ;;

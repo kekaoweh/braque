@@ -18,6 +18,9 @@ services:
       args:
         PICASSO_BACKEND_URL: http://backend:8000
     restart: unless-stopped
+    environment:
+      # Read at runtime by server-rendered link previews (app/s/[id]/layout.tsx).
+      PICASSO_BACKEND_URL: http://backend:8000
     depends_on: [backend]
 
   caddy:

@@ -225,6 +225,9 @@ export const api = {
     request("/auth/account/password", { method: "PUT", body: json({ current, new: next }) }),
   adminUsers: () => request<AdminUser[]>("/auth/admin/users"),
   adminInvite: () => request<{ code: string }>("/auth/admin/invite"),
+  adminResetPassword: (userId: string) =>
+    request<{ password: string }>(`/auth/admin/users/${userId}/reset-password`, { method: "POST" }),
+  deleteAccount: (password: string) => request("/account/delete", { method: "POST", body: json({ password }) }),
   share: (runId: string) => request<Run>(`/runs/${runId}/share`, { method: "POST" }),
   unshare: (runId: string) => request<Run>(`/runs/${runId}/share`, { method: "DELETE" }),
   shared: (shareId: string) => request<SharedVideo>(`/share/${shareId}`),

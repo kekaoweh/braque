@@ -91,7 +91,7 @@ try {
     await enter.click();
     await page2.getByRole("button", { name: /Checking with Claude/ }).waitFor({ timeout: 5000 });
     ok("shows 'Checking with Claude' while verifying", true);
-    await page2.getByText("Claude didn't accept that token").waitFor({ timeout: 90000 });
+    await page2.getByText("Claude didn't accept that key").waitFor({ timeout: 90000 });
     ok("an invalid key shows a clear error", page2.url().endsWith("/login"));
     await ctx2.close();
   }

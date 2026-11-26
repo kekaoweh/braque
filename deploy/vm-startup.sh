@@ -30,5 +30,7 @@ install -m 600 /etc/picasso.env "$DIR/deploy/.env"
 
 cd "$DIR/deploy"
 docker compose up -d --build --remove-orphans
+# Each build leaves ~1 GB of cache behind; without this the disk slowly fills and the site goes down.
 docker image prune -f
+docker builder prune -f --keep-storage 2GB
 echo "== picasso up"

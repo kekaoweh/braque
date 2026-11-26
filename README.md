@@ -158,6 +158,22 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 | `TIGRIS_ACCESS_KEY_ID` / `TIGRIS_SECRET_ACCESS_KEY` / `TIGRIS_BUCKET` | empty (local disk only) | Mirror media to Tigris; see Media storage |
 | `TIGRIS_ENDPOINT` | `https://t3.storage.dev` | S3 endpoint (`TIGRIS_ADDRESSING=path` for local S3 stand-ins) |
 
+## Backups and account care
+
+- **Daily database backups** (`app/backup.py`): once a day the server copies `picasso.db` with SQLite's
+  online backup API into `data/backups/braque-YYYY-MM-DD.db`, keeps the newest 14, and copies
+  `secret.key` beside them (without it, stored keys in a restored database can't be decrypted).
+  `deploy/gcp-vm.sh backup` takes a fresh copy and downloads them all to `deploy/backups/` (git
+  ignores it; keep it private). Media files are not in these copies; Tigris (below) or a disk
+  snapshot covers those.
+- **Forgotten passwords:** there's no email service yet, so the site admin resets them in
+  Settings → Site admin → Reset password, which shows a one-time password to pass on and signs the
+  customer out everywhere.
+- **Deleting an account:** Settings → Account → Delete account (password required) removes the
+  user's projects, renders, uploads, cloud copies, styles, sessions and stored key. The site admin's
+  own account can't be deleted this way.
+- **Disk:** every update prunes Docker's build cache (it otherwise grows about 1 GB per build).
+
 ## Media storage (Tigris)
 
 With `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY` and `TIGRIS_BUCKET` set (in `backend/.env`
@@ -165,6 +181,8 @@ locally, `deploy/.env` on the server), every file Braque writes (uploads, import
 thumbnails, renders) is mirrored to a private Tigris bucket under the same path it has in the data
 folder, e.g. `uploads/usr_…/ast_….mp4`. `app/storage.py` does the work:
 
+- At startup the server checks that the key can write to the bucket; if it can't, storage switches
+  off with one log line and everything stays on local disk.
 - Uploads happen in the background after a file is saved; the asset or render is then flagged
   `in_cloud`. Until then (or if Tigris is unreachable) it's served from local disk as before.
 - The browser loads media straight from Tigris via signed URLs (6-hour lifetime, redirect cached for

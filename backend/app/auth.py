@@ -64,6 +64,15 @@ def token_kind(token: str) -> str:
                              "during setup-token, that code goes back into Terminal; the token appears there after.")
 
 
+def refused(exc: Exception, what: str) -> str:
+    """Why Claude turned a key down, in words that say what to do."""
+    text = str(exc)
+    if "credit balance" in text.lower():
+        return (f"That {what} works, but its Anthropic account has no credit yet. Add some at "
+                "console.anthropic.com → Billing ($5 is plenty), then try again.")
+    return f"Claude didn't accept that {what}: {text}"
+
+
 def claude_accounts_restricted() -> bool:
     return bool(CLAUDE_ACCOUNT_ALLOWLIST or OWNER_CODE)
 
@@ -196,7 +205,7 @@ async def login(body: LoginIn, response: Response, db: Session = Depends(get_ses
     try:
         await verify_credential(token, kind, user_id)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(401, f"Claude didn't accept that token: {exc}") from exc
+        raise HTTPException(401, refused(exc, "token" if kind == "oauth" else "key")) from exc
 
     user = db.get(User, user_id)
     if not user:
@@ -310,7 +319,7 @@ async def set_key(body: KeyIn, user: User = Depends(current_user), db: Session =
         await verify_credential(token, kind, user.id)
     except Exception as exc:  # noqa: BLE001
         # 400, not 401: the user is signed in; it's the key that was refused (401 means "sign in again").
-        raise HTTPException(400, f"Claude didn't accept that key: {exc}") from exc
+        raise HTTPException(400, refused(exc, "key")) from exc
     user.token_kind = kind
     user.token_enc = fernet.encrypt(token.encode()).decode()
     user.token_hint = f"{token[:10]}…{token[-4:]}"
@@ -352,6 +361,28 @@ def change_password(body: PasswordIn, user: User = Depends(current_user), db: Se
 
 
 # --- Site admin ---------------------------------------------------------------------------------
+
+
+class ResetOut(BaseModel):
+    password: str
+
+
+@router.post("/admin/users/{user_id}/reset-password", response_model=ResetOut)
+def admin_reset_password(user_id: str, user: User = Depends(current_user), db: Session = Depends(get_session)):
+    """No email service yet, so the admin resets a forgotten password: a one-time password to pass on,
+    and the customer is signed out everywhere."""
+    if not accounts.is_admin(user):
+        raise HTTPException(403, "Only the site admin can do this.")
+    target = db.get(User, user_id)
+    if not target or not target.email:
+        raise HTTPException(404, "No email account with that ID.")
+    temp = "-".join(secrets.token_hex(2) for _ in range(3))  # e.g. 3f9a-0c1d-77be
+    target.password_hash = accounts.hash_password(temp)
+    for session in db.exec(select(AuthSession).where(AuthSession.user_id == target.id)).all():
+        db.delete(session)
+    db.add(target)
+    db.commit()
+    return ResetOut(password=temp)
 
 
 class InviteOut(BaseModel):

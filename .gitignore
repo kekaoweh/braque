@@ -6,3 +6,5 @@ backend/data/
 .env*
 .DS_Store
 *.tsbuildinfo
+# Server backups (contain secret.key)
+deploy/backups/

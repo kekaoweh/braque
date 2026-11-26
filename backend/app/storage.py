@@ -50,6 +50,24 @@ def _client():
     )
 
 
+def check_access() -> None:
+    """At startup, prove the key can write and delete in the bucket. If it can't (wrong permissions,
+    bad key, missing bucket), turn cloud storage off with one clear log line instead of failing on
+    every upload; everything keeps working from local disk."""
+    global ENABLED
+    if not ENABLED:
+        return
+    probe = "_healthcheck/startup"
+    try:
+        _client().put_object(Bucket=BUCKET, Key=probe, Body=b"ok")
+        _client().delete_object(Bucket=BUCKET, Key=probe)
+        log.info("Tigris storage on (bucket %s)", BUCKET)
+    except Exception as exc:  # noqa: BLE001
+        ENABLED = False
+        log.warning("Tigris storage OFF: this key can't write to bucket %r (%s). Media stays on local "
+                    "disk. Give the key Editor access to the bucket, then restart.", BUCKET, type(exc).__name__)
+
+
 def key_for(path: str | Path) -> str:
     """Bucket key for a file under DATA_DIR: its path relative to DATA_DIR."""
     return Path(path).resolve().relative_to(DATA_DIR).as_posix()

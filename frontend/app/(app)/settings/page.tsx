@@ -221,6 +221,7 @@ export default function SettingsPage() {
               </Row>
               <VideoCredit />
               {user.method === "email" && <PasswordRow />}
+              {!user.is_admin && <DeleteAccountRow />}
               <div className="flex flex-wrap gap-2 py-4">
                 <Button onClick={signOut} icon={<LogOut className="size-3.5" strokeWidth={1.75} />}>Sign out</Button>
                 <Button variant="danger" onClick={forget} icon={<ShieldOff className="size-3.5" strokeWidth={1.75} />}>
@@ -379,6 +380,12 @@ function AdminCard() {
     api.adminUsers().then(setUsers).catch(() => setUsers([]));
     api.adminInvite().then((r) => setInvite(r.code)).catch(() => setInvite(""));
   }, []);
+  const [reset, setReset] = useState<{ name: string; email: string; password: string } | null>(null);
+  const resetPassword = async (u: AdminUser) => {
+    if (!window.confirm(`Reset the password for ${u.email}? They'll be signed out everywhere and need the new one.`)) return;
+    const r = await api.adminResetPassword(u.id);
+    setReset({ name: u.name, email: u.email!, password: r.password });
+  };
   const link = invite ? `${window.location.origin}/login?invite=${encodeURIComponent(invite)}` : `${window.location.origin}/login`;
   const copyLink = async () => {
     await navigator.clipboard.writeText(link).catch(() => {});
@@ -413,6 +420,7 @@ function AdminCard() {
                     <th className="px-3.5 py-2 font-medium">Pays with</th>
                     <th className="px-3.5 py-2 text-right font-medium">Videos</th>
                     <th className="px-3.5 py-2 text-right font-medium">Studio credit this month</th>
+                    <th className="px-3.5 py-2" aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -425,11 +433,28 @@ function AdminCard() {
                       <td className="px-3.5 py-2.5 text-muted">{u.pays}</td>
                       <td className="px-3.5 py-2.5 text-right tabular-nums">{u.videos}</td>
                       <td className="px-3.5 py-2.5 text-right tabular-nums">${u.studio_spent.toFixed(2)}</td>
+                      <td className="px-2 py-2.5 text-right">
+                        {u.email && (
+                          <Button size="sm" variant="ghost" onClick={() => resetPassword(u)}>Reset password</Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {reset && (
+              <div className="mt-3 rounded-control border border-sage/30 bg-sage-soft px-3.5 py-3 text-[13px]">
+                <p>
+                  New password for <b className="font-medium">{reset.email}</b>:{" "}
+                  <code className="rounded bg-paper px-1.5 py-0.5 font-mono text-[13px] select-all">{reset.password}</code>
+                </p>
+                <p className="mt-1 text-[12.5px] text-muted">
+                  Send it to them privately. They can change it in Settings → Account after signing in.{" "}
+                  <button className="underline underline-offset-2" onClick={() => setReset(null)}>Done</button>
+                </p>
+              </div>
+            )}
             <p className="mt-2.5 text-[12.5px] text-faint">
               Studio credit used by everyone this month: <span className="tabular-nums">${total.toFixed(2)}</span>. The key and
               the monthly limit per person are PICASSO_STUDIO_API_KEY and PICASSO_STUDIO_MONTHLY_LIMIT_USD on the server.
@@ -438,5 +463,50 @@ function AdminCard() {
         )}
       </div>
     </Card>
+  );
+}
+
+/** Delete the account and everything in it (asks for the password on email accounts). */
+function DeleteAccountRow() {
+  const { user } = useApp();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const remove = async () => {
+    if (!window.confirm("Delete your account? All your videos, uploads and styles are removed for good. This can't be undone.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.deleteAccount(password);
+      window.location.href = "/login";
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't delete the account");
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="py-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[14px] font-medium">Delete account</div>
+          <p className="mt-0.5 text-[13px] text-faint">Removes your studio, videos, uploads and saved key for good.</p>
+        </div>
+        {!open && <Button size="sm" variant="danger" onClick={() => setOpen(true)}>Delete account</Button>}
+      </div>
+      {open && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {user.email && (
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password"
+              autoComplete="current-password" aria-label="Password to confirm" className="field h-9 min-w-0 flex-1 px-3 text-[13.5px]" />
+          )}
+          <Button size="sm" className="h-9 bg-brick text-white hover:bg-brick/90" onClick={remove} loading={busy} disabled={!!user.email && !password}>
+            Delete everything
+          </Button>
+          <Button size="sm" className="h-9" variant="ghost" onClick={() => { setOpen(false); setError(null); }}>Cancel</Button>
+          {error && <ErrorNote className="w-full">{error}</ErrorNote>}
+        </div>
+      )}
+    </div>
   );
 }
