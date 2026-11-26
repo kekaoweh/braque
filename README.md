@@ -148,6 +148,7 @@ cookie=$(cd backend && uv run python scripts/dev_session.py create)
 | `PICASSO_BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | Where Next proxies `/api` (fixed at build time) |
 | `PICASSO_CLAUDE_ACCOUNT_ALLOWLIST` | empty (anyone) | Workspace ids allowed to sign in with a Claude-account token; others must use API keys |
 | `PICASSO_INVITE_CODE` | empty (open) | Required to create a new workspace; returning users don't need it |
+| `PICASSO_OWNER_CODE` | empty | The owner's private code: with it, any Claude-account token signs in to the owner's workspace (`PICASSO_OWNER_WORKSPACE`, default the first allowlist entry) |
 | `TIGRIS_ACCESS_KEY_ID` / `TIGRIS_SECRET_ACCESS_KEY` / `TIGRIS_BUCKET` | empty (local disk only) | Mirror media to Tigris; see Media storage |
 | `TIGRIS_ENDPOINT` | `https://t3.storage.dev` | S3 endpoint (`TIGRIS_ADDRESSING=path` for local S3 stand-ins) |
 
@@ -192,8 +193,11 @@ own. Later: `deploy/gcp-vm.sh update` (pull from GitHub and rebuild), `env` (cha
 `status`, `logs`, `ssh`. Roughly $50/month for the VM and disk; `MACHINE=e2-medium` halves that at the
 cost of slower renders.
 
-Who can sign in: Claude-account tokens only for the workspace ids in the allowlist (find yours in
-Settings → Account), Anthropic API keys for anyone with the invite code.
+Who can sign in: Anthropic API keys for anyone with the invite code. Claude-account tokens only for
+the owner: either a workspace id in the allowlist (Settings → Account), or any token plus the owner
+code, which always lands in the owner's workspace, so a fresh `claude setup-token` never locks the owner
+out. The sign-in page detects which kind of key was pasted and only blocks an empty field; the server
+cleans stray quotes and spaces and explains anything it rejects.
 
 ## Not built yet
 

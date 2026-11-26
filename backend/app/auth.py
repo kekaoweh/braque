@@ -9,7 +9,8 @@ from sqlmodel import Session, select
 from .agent import verify_credential
 import hmac
 
-from .config import CLAUDE_ACCOUNT_ALLOWLIST, COOKIE_NAME, COOKIE_SECURE, INVITE_CODE, SESSION_DAYS, fernet
+from .config import (CLAUDE_ACCOUNT_ALLOWLIST, COOKIE_NAME, COOKIE_SECURE, INVITE_CODE, OWNER_CODE,
+                     OWNER_WORKSPACE, SESSION_DAYS, fernet)
 from .db import AuthSession, User, get_session, now
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -19,30 +20,46 @@ def _sha(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def clean_token(raw: str) -> str:
+    """Pasted keys often carry spaces, line breaks or quotes from wherever they were copied."""
+    return "".join(raw.split()).strip("\"'`")
+
+
 def token_kind(token: str) -> str:
     if token.startswith("sk-ant-oat"):
         return "oauth"
     if token.startswith("sk-ant-api"):
         return "api_key"
-    raise HTTPException(400, "That doesn't look like a Claude token. Run `claude setup-token` and "
-                             "paste the sk-ant-oat… value it prints.")
+    if token.startswith("sk-ant-admin"):
+        raise HTTPException(400, "That's an Admin API key, which can't run Claude. In console.anthropic.com "
+                                 "go to API keys (not Admin keys) and create a regular key; it starts with sk-ant-api.")
+    raise HTTPException(400, "That doesn't look like an Anthropic key. Paste an API key from "
+                             "console.anthropic.com (sk-ant-api…) or a Claude-account token from "
+                             "`claude setup-token` (sk-ant-oat…).")
+
+
+def claude_accounts_restricted() -> bool:
+    return bool(CLAUDE_ACCOUNT_ALLOWLIST or OWNER_CODE)
 
 
 class LoginIn(BaseModel):
     token: str = Field(min_length=20, max_length=500)
     name: str = Field(default="", max_length=80)
     invite: str = Field(default="", max_length=200)
+    owner_code: str = Field(default="", max_length=200)
 
 
 class AccessOut(BaseModel):
     invite_required: bool
     claude_account_restricted: bool
+    owner_code_enabled: bool
 
 
 @router.get("/access", response_model=AccessOut)
 def access():
     """What the sign-in page should ask for."""
-    return AccessOut(invite_required=bool(INVITE_CODE), claude_account_restricted=bool(CLAUDE_ACCOUNT_ALLOWLIST))
+    return AccessOut(invite_required=bool(INVITE_CODE), claude_account_restricted=claude_accounts_restricted(),
+                     owner_code_enabled=bool(OWNER_CODE))
 
 
 class UserOut(BaseModel):
@@ -58,17 +75,25 @@ def user_out(user: User) -> UserOut:
 
 @router.post("/login", response_model=UserOut)
 async def login(body: LoginIn, response: Response, db: Session = Depends(get_session)):
-    token = body.token.strip()
+    token = clean_token(body.token)
     kind = token_kind(token)
     # One workspace per Claude credential: signing in again with the same token lands
     # in the same workspace.
     user_id = "usr_" + _sha("picasso-user:" + token)[:20]
+    owner = False
     # Gatekeeping happens before the token is checked with Claude, so refusals are instant.
-    if kind == "oauth" and CLAUDE_ACCOUNT_ALLOWLIST and user_id not in CLAUDE_ACCOUNT_ALLOWLIST:
-        raise HTTPException(403, "Claude-account sign-in is limited to the studio's owner here. "
-                                 "Sign in with an Anthropic API key (sk-ant-api…) instead. If you are the "
-                                 f"owner, add this token's workspace ID to the allowlist: {user_id}")
-    if INVITE_CODE and not db.get(User, user_id) and not hmac.compare_digest(body.invite.strip(), INVITE_CODE):
+    if kind == "oauth" and claude_accounts_restricted() and user_id not in CLAUDE_ACCOUNT_ALLOWLIST:
+        code = body.owner_code.strip()
+        if not (OWNER_CODE and code and hmac.compare_digest(code, OWNER_CODE)):
+            raise HTTPException(403, "Claude-account sign-in is for the studio's owner"
+                                     + (" and needs the owner code." if OWNER_CODE else ".")
+                                     + " Everyone else: sign in with an Anthropic API key (sk-ant-api…) "
+                                       "from console.anthropic.com.")
+        # The owner's tokens change (each `claude setup-token` makes a new one); their workspace doesn't.
+        owner = True
+        user_id = OWNER_WORKSPACE or user_id
+    if INVITE_CODE and not owner and not db.get(User, user_id) \
+            and not hmac.compare_digest(body.invite.strip(), INVITE_CODE):
         raise HTTPException(403, "This studio is invite-only. Enter the invite code you were given.")
     try:
         await verify_credential(token, kind, user_id)

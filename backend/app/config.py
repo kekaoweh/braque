@@ -46,6 +46,10 @@ CLAUDE_ACCOUNT_ALLOWLIST = {
 }
 # Creating a new workspace needs this code; returning users don't.
 INVITE_CODE = os.environ.get("PICASSO_INVITE_CODE", "").strip()
+# The owner's private code. With it, a Claude-account token from any `claude setup-token` run signs
+# in to the owner's workspace (the first allowlist entry), so a fresh token never locks the owner out.
+OWNER_CODE = os.environ.get("PICASSO_OWNER_CODE", "").strip()
+OWNER_WORKSPACE = os.environ.get("PICASSO_OWNER_WORKSPACE", "").strip() or next(iter(sorted(CLAUDE_ACCOUNT_ALLOWLIST)), "")
 
 # Each user's agents must run on that user's own Claude credential, never on
 # whatever happens to be configured for the server process.

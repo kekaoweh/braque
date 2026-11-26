@@ -6,16 +6,20 @@ import { FormEvent, useEffect, useState } from "react";
 import { StudyPlate } from "@/components/artwork";
 import { Wordmark } from "@/components/logo";
 import { Button, ErrorNote, StepNumber } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Access, api } from "@/lib/api";
 
 const COMMAND = "claude setup-token";
+
+/** Pasted keys often carry spaces, line breaks or quotes from wherever they were copied. */
+const clean = (raw: string) => raw.replace(/\s+/g, "").replace(/^["'`]+|["'`]+$/g, "");
 
 export default function LoginPage() {
   const router = useRouter();
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
   const [invite, setInvite] = useState("");
-  const [access, setAccess] = useState({ invite_required: false, claude_account_restricted: false });
+  const [ownerCode, setOwnerCode] = useState("");
+  const [access, setAccess] = useState<Access>({ invite_required: false, claude_account_restricted: false, owner_code_enabled: false });
   // "key": an Anthropic API key (anyone). "claude": a Claude-account token from `claude setup-token`
   // (the owner, when the server restricts it).
   const [mode, setMode] = useState<"key" | "claude">("claude");
@@ -38,12 +42,25 @@ export default function LoginPage() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const cleaned = clean(token);
+  // What was pasted decides the route: a Claude-account token or an API key. Never block on it;
+  // the server checks the value and explains any problem.
+  const pastedKind = cleaned.startsWith("sk-ant-oat") ? "claude" : cleaned.startsWith("sk-ant-api") ? "key" : null;
+  useEffect(() => {
+    if (pastedKind) setMode(pastedKind);
+  }, [pastedKind]);
+  // A Claude-account token on a server that reserves those for its owner.
+  const ownerPath = mode === "claude" && access.claude_account_restricted;
+  const askOwnerCode = ownerPath && access.owner_code_enabled;
+  const askInvite = access.invite_required && !ownerPath;
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!cleaned || busy) return;
     setBusy(true);
     setError(null);
     try {
-      await api.login(token.trim(), name.trim(), invite.trim());
+      await api.login(cleaned, name.trim(), askInvite ? invite.trim() : "", askOwnerCode ? ownerCode.trim() : "");
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -51,9 +68,6 @@ export default function LoginPage() {
     }
   };
 
-  const looksValid = /^sk-ant-(oat|api)/.test(token.trim());
-  // Catch a Claude-account token pasted on a server that reserves those for its owner.
-  const wrongKind = mode === "key" && access.claude_account_restricted && token.trim().startsWith("sk-ant-oat");
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
@@ -136,7 +150,8 @@ export default function LoginPage() {
                     </button>
                   </div>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
-                    It opens Claude in your browser, then prints a long-lived token. No Claude Code yet?{" "}
+                    Run it in the Terminal app. It opens Claude in your browser; approve, and the terminal prints a
+                    long-lived token. No Claude Code yet?{" "}
                     <code className="font-mono">npm i -g @anthropic-ai/claude-code</code>
                   </p>
                 </Step>
@@ -164,16 +179,35 @@ export default function LoginPage() {
                     {show ? <EyeOff className="size-3.5" strokeWidth={1.5} /> : <Eye className="size-3.5" strokeWidth={1.5} />}
                   </button>
                 </div>
-                {wrongKind && (
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-brick">
-                    That&apos;s a Claude-account token (from <code className="font-mono">claude setup-token</code>). Here, only the
-                    studio&apos;s owner can use one. Paste an API key from console.anthropic.com instead; it starts with{" "}
-                    <code className="font-mono">sk-ant-api</code>.
+                {ownerPath && (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
+                    Claude-account tokens are for the studio&apos;s owner here. Not the owner? Use an API key instead
+                    (link below).
+                  </p>
+                )}
+                {cleaned.length > 8 && !pastedKind && (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-faint">
+                    Anthropic keys start with <code className="font-mono">sk-ant-api</code> (API key) or{" "}
+                    <code className="font-mono">sk-ant-oat</code> (Claude account). You can still try it.
                   </p>
                 )}
               </Step>
 
-              {access.invite_required && (
+              {askOwnerCode && (
+                <Step n={3} title="Owner code">
+                  <input
+                    type="password"
+                    value={ownerCode}
+                    onChange={(e) => setOwnerCode(e.target.value)}
+                    placeholder="The studio owner's private code"
+                    autoComplete="off"
+                    aria-label="Owner code"
+                    className="field mt-2 h-10 w-full px-3.5 text-[14px]"
+                  />
+                </Step>
+              )}
+
+              {askInvite && (
                 <Step n={3} title="Invite code" note="first sign-in only">
                   <input
                     value={invite}
@@ -185,7 +219,7 @@ export default function LoginPage() {
                 </Step>
               )}
 
-              <Step n={access.invite_required ? 4 : 3} title="Name your studio" note="optional">
+              <Step n={askInvite || askOwnerCode ? 4 : 3} title="Name your studio" note="optional">
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -200,14 +234,14 @@ export default function LoginPage() {
               <ErrorNote className="mt-6">{error}</ErrorNote>
             )}
 
-            <Button type="submit" variant="primary" size="lg" className="mt-7 w-full" loading={busy} disabled={!looksValid || wrongKind}>
+            <Button type="submit" variant="primary" size="lg" className="mt-7 w-full" loading={busy} disabled={!cleaned}>
               {busy ? "Checking with Claude" : "Enter the studio"}
               {!busy && <ArrowRight className="size-4" strokeWidth={1.5} />}
             </Button>
 
             <button
               type="button"
-              onClick={() => { setMode(mode === "key" ? "claude" : "key"); setError(null); }}
+              onClick={() => { setMode(mode === "key" ? "claude" : "key"); setToken(""); setError(null); }}
               className="mt-4 w-full text-center text-[13px] text-muted underline-offset-4 hover:text-fg hover:underline"
             >
               {mode === "key"

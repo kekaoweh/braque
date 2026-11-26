@@ -9,7 +9,8 @@
 #   deploy/gcp-vm.sh ssh
 #
 # Overrides: PROJECT, ZONE (us-central1-a), NAME (picasso), MACHINE (e2-standard-2), DISK_GB (50),
-# DOMAIN (default <ip>.sslip.io), CLAUDE_ACCOUNT_ALLOWLIST, INVITE_CODE.
+# DOMAIN (default: saved, else <ip>.sslip.io), CLAUDE_ACCOUNT_ALLOWLIST, INVITE_CODE, OWNER_CODE,
+# WITH_TIGRIS=1 (also send TIGRIS_* from backend/.env).
 set -euo pipefail
 
 # gcloud from PATH, or the per-user install in ~/google-cloud-sdk.
@@ -37,16 +38,26 @@ on_vm() { $G compute ssh "$NAME" --zone="$ZONE" --command="$1"; }
 
 # Settings file for the server. Kept outside git: it holds the invite code and API keys.
 write_env() {
-  local env_file=$HERE/.env domain=${DOMAIN:-$(ip | tr . -).sslip.io}
-  local invite=${INVITE_CODE:-$(grep -s '^PICASSO_INVITE_CODE=' "$env_file" | cut -d= -f2- || true)}
+  local env_file=$HERE/.env
+  saved() { grep -s "^$1=" "$env_file" | cut -d= -f2- || true; }
   # od reads a fixed number of bytes (a `tr </dev/urandom | head` pipe dies of SIGPIPE under pipefail).
-  [ -n "$invite" ] || invite=$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
-  local allow=${CLAUDE_ACCOUNT_ALLOWLIST:-$(grep -s '^PICASSO_CLAUDE_ACCOUNT_ALLOWLIST=' "$env_file" | cut -d= -f2- || true)}
-  local keys=$(grep -sE '^(PIXABAY_API_KEY|PEXELS_API_KEY|TIGRIS_[A-Z_]+)=' "$ROOT/backend/.env" || true)
+  random_code() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
+  # Anything already saved is kept unless overridden, so `env` never silently resets the domain or codes.
+  local domain=${DOMAIN:-$(saved PICASSO_DOMAIN)}
+  [ -n "$domain" ] || domain=$(ip | tr . -).sslip.io
+  local invite=${INVITE_CODE:-$(saved PICASSO_INVITE_CODE)}
+  [ -n "$invite" ] || invite=$(random_code 5)
+  local owner=${OWNER_CODE:-$(saved PICASSO_OWNER_CODE)}
+  [ -n "$owner" ] || owner=$(random_code 12)
+  local allow=${CLAUDE_ACCOUNT_ALLOWLIST:-$(saved PICASSO_CLAUDE_ACCOUNT_ALLOWLIST)}
+  # Footage keys always; Tigris only on request (WITH_TIGRIS=1), once its key can reach the bucket.
+  local pattern='PIXABAY_API_KEY|PEXELS_API_KEY'
+  [ "${WITH_TIGRIS:-0}" = 1 ] && pattern="$pattern|TIGRIS_[A-Z_]+"
+  local keys=$(grep -sE "^($pattern)=" "$ROOT/backend/.env" || true)
   umask 077
-  printf 'PICASSO_DOMAIN=%s\nPICASSO_CLAUDE_ACCOUNT_ALLOWLIST=%s\nPICASSO_INVITE_CODE=%s\n%s\n' \
-    "$domain" "$allow" "$invite" "$keys" > "$env_file"
-  echo "Settings written to deploy/.env (domain $domain, invite code $invite)"
+  printf 'PICASSO_DOMAIN=%s\nPICASSO_CLAUDE_ACCOUNT_ALLOWLIST=%s\nPICASSO_INVITE_CODE=%s\nPICASSO_OWNER_CODE=%s\n%s\n' \
+    "$domain" "$allow" "$invite" "$owner" "$keys" > "$env_file"
+  echo "Settings written to deploy/.env (domain $domain; invite and owner codes are in that file)"
 }
 
 upload_env() {

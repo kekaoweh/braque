@@ -1,3 +1,6 @@
+/** What the sign-in page should ask for. */
+export type Access = { invite_required: boolean; claude_account_restricted: boolean; owner_code_enabled: boolean };
+
 export type User = { id: string; name: string; token_kind: "oauth" | "api_key"; token_hint: string };
 
 export type AssetKind = "video" | "image" | "audio";
@@ -160,9 +163,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown) => JSON.stringify(body);
 
 export const api = {
-  login: (token: string, name: string, invite = "") =>
-    request<User>("/auth/login", { method: "POST", body: json({ token, name, invite }) }),
-  access: () => request<{ invite_required: boolean; claude_account_restricted: boolean }>("/auth/access"),
+  login: (token: string, name: string, invite = "", owner_code = "") =>
+    request<User>("/auth/login", { method: "POST", body: json({ token, name, invite, owner_code }) }),
+  access: () => request<Access>("/auth/access"),
   me: () => request<User>("/auth/me"),
   updateMe: (name: string) => request<User>("/auth/me", { method: "PATCH", body: json({ name }) }),
   logout: () => request("/auth/logout", { method: "POST" }),
