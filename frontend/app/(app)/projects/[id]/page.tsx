@@ -89,14 +89,14 @@ export default function ProjectPage() {
     if (!project || !window.confirm(`Remove “${project.name || "Untitled"}” and all its materials?`)) return;
     await api.deleteProject(id);
     await refreshProjects();
-    router.push("/");
+    router.push("/studio");
   };
 
   if (notFound)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted">
         <span className="text-[16px] font-medium text-fg">This video doesn&apos;t exist or was removed.</span>
-        <Link href="/" className="text-fg underline underline-offset-4">Back to the Studio</Link>
+        <Link href="/studio" className="text-fg underline underline-offset-4">Back to the Studio</Link>
       </div>
     );
   if (!project)
@@ -139,7 +139,7 @@ export default function ProjectPage() {
         {/* Top bar */}
         <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-4 sm:px-5">
           <nav className="flex min-w-0 items-center gap-1.5 text-[13.5px]" aria-label="Breadcrumb">
-            <Link href="/" className="shrink-0 text-muted transition-colors hover:text-fg">Studio</Link>
+            <Link href="/studio" className="shrink-0 text-muted transition-colors hover:text-fg">Studio</Link>
             <ChevronRight className="size-3.5 shrink-0 text-faint" strokeWidth={1.75} />
             <span className="truncate font-medium">{project.name || "Untitled"}</span>
           </nav>

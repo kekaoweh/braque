@@ -58,7 +58,7 @@ export default function SharedVideoPage() {
                   {video.duration ? ` · ${formatDuration(video.duration)}` : ""} · {video.aspect}
                 </p>
               </div>
-              <Link href="/login" className="text-[13px] text-faint underline-offset-4 hover:text-muted hover:underline">
+              <Link href="/" className="text-[13px] text-faint underline-offset-4 hover:text-muted hover:underline">
                 Made with Braque
               </Link>
             </figcaption>

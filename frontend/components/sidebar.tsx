@@ -47,7 +47,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="flex h-full w-[248px] flex-col">
       <div className="flex h-14 items-center justify-between px-4">
-        <Link href="/" onClick={onClose} aria-label="Braque home" className="rounded-control px-1 py-0.5">
+        <Link href="/studio" onClick={onClose} aria-label="Braque studio" className="rounded-control px-1 py-0.5">
           <Wordmark />
         </Link>
         {onClose && (
@@ -72,7 +72,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <nav className="mt-4 space-y-0.5 px-3">
-        <NavLink href="/" active={pathname === "/"} icon={<Home className="size-4" strokeWidth={1.75} />} onClick={onClose}>
+        <NavLink href="/studio" active={pathname === "/studio"} icon={<Home className="size-4" strokeWidth={1.75} />} onClick={onClose}>
           Studio
         </NavLink>
         <NavLink href="/styles" active={pathname === "/styles"} icon={<Palette className="size-4" strokeWidth={1.75} />} onClick={onClose}>

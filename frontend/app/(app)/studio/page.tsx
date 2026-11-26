@@ -27,10 +27,10 @@ export default function StudioPage() {
   const { user, projects, styles, settings, refreshProjects, account, connectKey } = useApp();
   const needsKey = account.payer === "none" && !account.studio_credit;
 
-  // Right after sign-up (/?welcome), walk a new customer through connecting their key.
+  // Right after sign-up (/studio?welcome), walk a new customer through connecting their key.
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("welcome")) return;
-    window.history.replaceState(null, "", "/");
+    window.history.replaceState(null, "", "/studio");
     if (needsKey) connectKey();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const router = useRouter();

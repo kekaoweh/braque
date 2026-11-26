@@ -60,7 +60,7 @@ export function CommandPalette() {
           router.push(`/projects/${p.id}`);
         },
       },
-      { id: "studio", group: "Go to", label: "Studio", hint: "Home", icon: <Home className="size-4" strokeWidth={1.5} />, run: go("/") },
+      { id: "studio", group: "Go to", label: "Studio", hint: "Home", icon: <Home className="size-4" strokeWidth={1.5} />, run: go("/studio") },
       { id: "styles", group: "Go to", label: "Styles", icon: <Palette className="size-4" strokeWidth={1.5} />, run: go("/styles") },
       { id: "settings", group: "Go to", label: "Settings", hint: "Preferences", icon: <Settings className="size-4" strokeWidth={1.5} />, run: go("/settings") },
     ];

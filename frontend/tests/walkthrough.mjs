@@ -42,11 +42,14 @@ const ok = (name, cond, extra = "") => {
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true });
 try {
-  // 1. Sign-in: email accounts, then the API-key route
+  // 1. The public homepage, then sign-in: email accounts and the API-key route
   {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
     await page.goto(`${BASE}/`);
+    await page.getByRole("heading", { name: /Describe the film/ }).waitFor({ timeout: 15000 });
+    ok("the homepage is public and says who made Braque", await page.getByText("independent studio created by").isVisible());
+    await page.goto(`${BASE}/studio`);
     await page.waitForURL("**/login", { timeout: 15000 });
     ok("signed-out visitor is sent to sign-in", page.url().endsWith("/login"));
     const signIn = page.getByRole("button", { name: "Sign in", exact: true }).last();
@@ -104,7 +107,7 @@ try {
   page.on("response", (r) => r.url().includes("/api/") && r.status() >= 500 && problems.push(`HTTP ${r.status()} ${r.url()}`));
 
   // 2. Studio home: compose a new video
-  await page.goto(`${BASE}/`);
+  await page.goto(`${BASE}/studio`);
   await page.getByRole("heading", { name: /What shall we/ }).waitFor();
   ok("Studio greets the signed-in studio by name", await page.getByText(/, UI Test$/).isVisible());
   await page.getByRole("button", { name: "Product launch teaser" }).click();
@@ -219,7 +222,7 @@ try {
   await page.waitForTimeout(500);
   const prefs = await page.evaluate(async () => (await fetch("/api/settings")).json());
   ok("editor settings are saved to the account", prefs.model === "claude-sonnet-5-5" && prefs.credits_card === false && prefs.default_seconds === 15);
-  await page.goto(`${BASE}/`);
+  await page.goto(`${BASE}/studio`);
   await page.getByRole("heading", { name: /What shall we/ }).waitFor();
   ok("new videos start from the saved defaults", await page.getByRole("button", { name: /15 sec/ }).isVisible());
 
@@ -228,7 +231,7 @@ try {
   await page.getByRole("button", { name: "More" }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Remove this work" }).click();
-  await page.waitForURL(`${BASE}/`);
+  await page.waitForURL(`${BASE}/studio`);
   await page.waitForTimeout(500);
   ok("removing a video returns to the Studio without it", !(await page.locator("aside").getByText("Launch teaser QA").count()));
   await page.getByRole("button", { name: /UI Test/ }).click();

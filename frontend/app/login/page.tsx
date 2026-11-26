@@ -41,9 +41,11 @@ export default function LoginPage() {
   // An invite link (/login?invite=CODE) opens Create account with the code already applied.
   const [invited, setInvited] = useState(false);
   useEffect(() => {
-    api.me().then(() => router.replace("/")).catch(() => {});
+    api.me().then(() => router.replace("/studio")).catch(() => {});
     api.access().then(setAccess).catch(() => {});
-    const code = new URLSearchParams(window.location.search).get("invite");
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("signup")) setView("signup");
+    const code = params.get("invite");
     if (code) {
       setInvite(cleanCode(code));
       setInvited(true);
@@ -86,10 +88,10 @@ export default function LoginPage() {
       else if (view === "signup") {
         await api.signup({ email, password, name: name.trim(), invite: cleanCode(invite) });
         // New customers land on the Studio, which walks them through connecting a key if they need one.
-        router.replace("/?welcome");
+        router.replace("/studio?welcome");
         return;
       } else await api.login(cleaned, name.trim(), askInvite ? cleanCode(invite) : "", askAdminCode ? cleanCode(adminCode) : "");
-      router.replace("/");
+      router.replace("/studio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
       setBusy(false);

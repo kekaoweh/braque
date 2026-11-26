@@ -103,6 +103,10 @@ five built-in styles, and users can create their own on the Styles page.
 
 ## Finding your way around
 
+- **`/`** is the public homepage (what Braque is, how it works, about, FAQ), server-rendered with
+  search metadata and structured data naming the founder; `robots.txt` and `sitemap.xml` list it and
+  keep the studio, people's work and share links out of search results. The studio is at **`/studio`**.
+
 - **⌘K / Ctrl+K** opens the quick switcher anywhere: jump to any video, Studio or Styles, start a new
   video, or sign out.
 - **New video** sits at the top of the sidebar, under search; your videos are listed below with

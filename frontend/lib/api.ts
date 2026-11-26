@@ -194,9 +194,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       const body = await res.json();
       message = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
     } catch {}
-    // An expired session sends you to sign in, except where 401 is an answer (sign-in, public share pages).
+    // An expired session sends you to sign in, except on public pages, where 401 is just an answer
+    // (the homepage, sign-in, shared videos).
     const path = typeof window !== "undefined" ? window.location.pathname : "/login";
-    if (res.status === 401 && path !== "/login" && !path.startsWith("/s/")) {
+    if (res.status === 401 && path !== "/" && path !== "/login" && !path.startsWith("/s/")) {
       window.location.href = "/login";
     }
     throw new ApiError(res.status, message);
